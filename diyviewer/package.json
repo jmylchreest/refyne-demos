@@ -1,0 +1,29 @@
+{
+  "name": "refyne-diyviewer",
+  "type": "module",
+  "version": "0.0.1",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "wrangler pages dev dist",
+    "astro": "astro",
+    "db:create": "wrangler d1 create refyne-diyviewer-db",
+    "db:migrate": "wrangler d1 execute refyne-diyviewer-db --local --file=./migrations/001_init.sql",
+    "db:migrate:remote": "wrangler d1 execute refyne-diyviewer-db --remote --file=./migrations/001_init.sql",
+    "db:seed": "wrangler d1 execute refyne-diyviewer-db --local --file=./migrations/002_seed.sql",
+    "db:seed:remote": "wrangler d1 execute refyne-diyviewer-db --remote --file=./migrations/002_seed.sql",
+    "db:reset": "wrangler d1 execute refyne-diyviewer-db --local --file=./migrations/003_reset.sql",
+    "deploy": "npm run build && wrangler pages deploy dist"
+  },
+  "dependencies": {
+    "astro": "^5.16.13",
+    "@astrojs/cloudflare": "^12.5.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.18",
+    "tailwindcss": "^4.1.18",
+    "wrangler": "^4.60.0",
+    "typescript": "^5.9.3"
+  }
+}

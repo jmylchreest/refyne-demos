@@ -1,0 +1,139 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { getChecklist, toggleChecklistItem, removeChecklistItem, clearChecklist } from '../lib/db';
+
+const db = Astro.locals.runtime.env.DB;
+
+// Handle POST actions
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+
+  if (action === 'toggle') {
+    const id = formData.get('id') as string;
+    await toggleChecklistItem(db, id);
+  }
+
+  if (action === 'remove') {
+    const id = formData.get('id') as string;
+    await removeChecklistItem(db, id);
+  }
+
+  if (action === 'clear') {
+    await clearChecklist(db);
+  }
+
+  // Redirect to refresh the page
+  return Astro.redirect('/checklist');
+}
+
+const items = await getChecklist(db);
+const uncheckedCount = items.filter(i => !i.checked).length;
+const checkedCount = items.filter(i => i.checked).length;
+---
+
+<Layout title="Materials List">
+  <div class="max-w-2xl mx-auto">
+    <div class="flex items-center justify-between mb-8">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Materials List</h1>
+        <p class="mt-1 text-gray-600 dark:text-gray-400">
+          {uncheckedCount} items to get{checkedCount > 0 && `, ${checkedCount} checked off`}
+        </p>
+      </div>
+
+      {items.length > 0 && (
+        <form method="POST" onsubmit="return confirm('Clear all items from your materials list?')">
+          <input type="hidden" name="action" value="clear" />
+          <button type="submit" class="btn btn-secondary btn-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Clear All
+          </button>
+        </form>
+      )}
+    </div>
+
+    {items.length === 0 ? (
+      <div class="text-center py-16">
+        <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
+        </svg>
+        <h2 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">Materials list is empty</h2>
+        <p class="mt-2 text-gray-500 dark:text-gray-400">Add materials from a project to get started</p>
+        <a href="/" class="btn btn-primary mt-4">Browse Projects</a>
+      </div>
+    ) : (
+      <div class="space-y-3">
+        {items.filter(i => !i.checked).map((item) => (
+          <div class="card p-4 flex items-center gap-3">
+            <form method="POST" class="flex-shrink-0">
+              <input type="hidden" name="action" value="toggle" />
+              <input type="hidden" name="id" value={item.id} />
+              <button type="submit" class="w-6 h-6 rounded border-2 border-gray-300 hover:border-amber-500 transition-colors">
+              </button>
+            </form>
+            <div class="flex-1 min-w-0">
+              <span class="text-gray-900 dark:text-white">
+                {item.quantity && <strong>{item.quantity}</strong>}
+                {' '}{item.material_name}
+              </span>
+              {item.notes && (
+                <span class="text-gray-500 text-sm ml-2">({item.notes})</span>
+              )}
+            </div>
+            <form method="POST">
+              <input type="hidden" name="action" value="remove" />
+              <input type="hidden" name="id" value={item.id} />
+              <button type="submit" class="text-gray-400 hover:text-red-500 transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </form>
+          </div>
+        ))}
+
+        {checkedCount > 0 && (
+          <div class="pt-4 border-t border-gray-200 dark:border-gray-700">
+            <h3 class="text-sm font-medium text-gray-500 dark:text-gray-400 mb-3">
+              Checked ({checkedCount})
+            </h3>
+            {items.filter(i => i.checked).map((item) => (
+              <div class="card p-4 flex items-center gap-3 mb-3 opacity-60">
+                <form method="POST" class="flex-shrink-0">
+                  <input type="hidden" name="action" value="toggle" />
+                  <input type="hidden" name="id" value={item.id} />
+                  <button type="submit" class="w-6 h-6 rounded bg-amber-500 border-amber-500 text-white flex items-center justify-center">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
+                    </svg>
+                  </button>
+                </form>
+                <div class="flex-1 min-w-0">
+                  <span class="line-through text-gray-500">
+                    {item.quantity && <strong>{item.quantity}</strong>}
+                    {' '}{item.material_name}
+                  </span>
+                  {item.notes && (
+                    <span class="text-gray-400 text-sm ml-2">({item.notes})</span>
+                  )}
+                </div>
+                <form method="POST">
+                  <input type="hidden" name="action" value="remove" />
+                  <input type="hidden" name="id" value={item.id} />
+                  <button type="submit" class="text-gray-400 hover:text-red-500 transition-colors">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </form>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )}
+  </div>
+</Layout>

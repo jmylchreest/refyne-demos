@@ -1,0 +1,221 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { addTutorial } from '../lib/db';
+import { extractTutorial } from '../lib/refyne';
+
+const db = Astro.locals.runtime.env.DB;
+const env = Astro.locals.runtime.env;
+
+let error: string | null = null;
+let extractedData: any = null;
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+
+  if (action === 'extract') {
+    const url = formData.get('url') as string;
+
+    if (!url) {
+      error = 'Please enter a URL';
+    } else {
+      const result = await extractTutorial(url, env.REFYNE_API_URL, env.DEMO_API_KEY);
+
+      if (!result.success) {
+        error = result.error || 'Failed to extract tutorial';
+      } else {
+        extractedData = { ...result.data, source_url: url };
+      }
+    }
+  }
+
+  if (action === 'save') {
+    const tutorialData = JSON.parse(formData.get('tutorial') as string);
+
+    try {
+      const tutorialId = await addTutorial(
+        db,
+        {
+          title: tutorialData.title,
+          overview: tutorialData.overview || null,
+          image_url: tutorialData.image_url || null,
+          difficulty: tutorialData.difficulty || null,
+          estimated_time: tutorialData.estimated_time || null,
+          source_url: tutorialData.source_url || null,
+        },
+        (tutorialData.materials_and_tools || []).map((mat: any, idx: number) => ({
+          item: mat.item,
+          quantity: mat.quantity || null,
+          notes: mat.notes || null,
+          sort_order: idx,
+        })),
+        (tutorialData.steps || []).map((step: any) => ({
+          step_number: step.step_number,
+          title: step.title,
+          instructions: step.instructions,
+          tips: step.tips || null,
+          image_urls: step.image_urls || [],
+        }))
+      );
+
+      return Astro.redirect(`/tutorial/${tutorialId}`);
+    } catch (e) {
+      error = 'Failed to save tutorial';
+    }
+  }
+}
+---
+
+<Layout title="Add Project">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Add Project</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">
+      Enter a URL to extract DIY tutorial details automatically using Refyne
+    </p>
+
+    {error && (
+      <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {error}
+        </div>
+      </div>
+    )}
+
+    {!extractedData ? (
+      <form method="POST" class="card p-6">
+        <input type="hidden" name="action" value="extract" />
+
+        <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+          Tutorial URL
+        </label>
+        <div class="flex gap-3">
+          <input
+            type="url"
+            name="url"
+            placeholder="https://www.instructables.com/..."
+            class="input flex-1"
+            required
+          />
+          <button type="submit" class="btn btn-primary whitespace-nowrap" id="extract-btn">
+            <span class="btn-text">Extract Tutorial</span>
+            <span class="btn-loading hidden">
+              <span class="spinner mr-2"></span>
+              Extracting...
+            </span>
+          </button>
+        </div>
+        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          Try extracting from <a href="https://www.instructables.com/" target="_blank" class="text-amber-600 hover:underline">Instructables</a> or similar DIY sites
+        </p>
+      </form>
+    ) : (
+      <form method="POST" class="space-y-6">
+        <input type="hidden" name="action" value="save" />
+        <input type="hidden" name="tutorial" value={JSON.stringify(extractedData)} />
+
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Extracted Tutorial</h2>
+            <span class="badge badge-success">Ready to save</span>
+          </div>
+
+          {extractedData.image_url && (
+            <div class="aspect-video rounded-lg overflow-hidden mb-4">
+              <img src={extractedData.image_url} alt={extractedData.title} class="w-full h-full object-cover" />
+            </div>
+          )}
+
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{extractedData.title}</h3>
+
+          {extractedData.overview && (
+            <p class="mt-2 text-gray-600 dark:text-gray-400">{extractedData.overview}</p>
+          )}
+
+          <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
+            {extractedData.difficulty && (
+              <span class="flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                </svg>
+                {extractedData.difficulty}
+              </span>
+            )}
+            {extractedData.estimated_time && (
+              <span class="flex items-center gap-1">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                {extractedData.estimated_time}
+              </span>
+            )}
+          </div>
+
+          <div class="mt-6 grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
+                Materials & Tools ({extractedData.materials_and_tools?.length || 0})
+              </h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                {extractedData.materials_and_tools?.slice(0, 6).map((mat: any) => (
+                  <li>• {mat.quantity ? `${mat.quantity} ` : ''}{mat.item}{mat.notes ? ` (${mat.notes})` : ''}</li>
+                ))}
+                {extractedData.materials_and_tools?.length > 6 && (
+                  <li class="text-gray-400">+ {extractedData.materials_and_tools.length - 6} more...</li>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
+                Steps ({extractedData.steps?.length || 0})
+              </h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                {extractedData.steps?.slice(0, 4).map((step: any) => (
+                  <li class="truncate">{step.step_number}. {step.title}</li>
+                ))}
+                {extractedData.steps?.length > 4 && (
+                  <li class="text-gray-400">+ {extractedData.steps.length - 4} more steps...</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button type="submit" class="btn btn-primary flex-1">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Save Project
+          </button>
+          <a href="/add" class="btn btn-secondary">Try Another URL</a>
+        </div>
+      </form>
+    )}
+
+    <div class="mt-8 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
+      <h3 class="font-semibold text-amber-900 dark:text-amber-300 mb-2">How it works</h3>
+      <p class="text-sm text-amber-700 dark:text-amber-400">
+        This demo uses <a href="https://refyne.uk" class="underline" target="_blank">Refyne's</a> extraction API to automatically
+        parse tutorial details from DIY websites. The extracted data includes materials, step-by-step instructions with images, and more.
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // Show loading state on extract
+  const form = document.querySelector('form');
+  const btn = document.getElementById('extract-btn');
+
+  form?.addEventListener('submit', () => {
+    if (btn) {
+      btn.querySelector('.btn-text')?.classList.add('hidden');
+      btn.querySelector('.btn-loading')?.classList.remove('hidden');
+      btn.setAttribute('disabled', 'true');
+    }
+  });
+</script>
