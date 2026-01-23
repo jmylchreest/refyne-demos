@@ -133,6 +133,7 @@ export async function extractRecipe(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
+        'Referer': 'https://recipeapp-demo.refyne.uk',
       },
       body: JSON.stringify({
         url,
