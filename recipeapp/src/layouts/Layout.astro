@@ -1,0 +1,74 @@
+---
+interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description = 'A demo recipe app powered by Refyne' } = Astro.props;
+
+// Check for embed mode and theme
+const url = new URL(Astro.request.url);
+const isEmbed = url.searchParams.get('embed') === 'true';
+const theme = url.searchParams.get('theme'); // 'light', 'dark', or 'auto'
+
+// Build body classes
+const bodyClasses = [
+  isEmbed ? 'embed' : '',
+  theme === 'light' ? 'theme-light' : '',
+  theme === 'dark' ? 'theme-dark' : '',
+].filter(Boolean).join(' ');
+---
+
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <title>{title} | Recipe App Demo</title>
+  </head>
+  <body class={bodyClasses}>
+    {!isEmbed && (
+      <header class="nav-bar bg-white border-b border-gray-200 dark:bg-gray-900 dark:border-gray-700">
+        <nav class="max-w-5xl mx-auto px-4 py-3 flex items-center justify-between">
+          <a href="/" class="flex items-center gap-2 text-xl font-bold text-indigo-600">
+            <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5" />
+            </svg>
+            Recipe App
+          </a>
+          <div class="flex items-center gap-4">
+            <a href="/" class="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">Recipes</a>
+            <a href="/shopping-list" class="text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white">Shopping List</a>
+            <a href="/add" class="btn btn-primary btn-sm">Add Recipe</a>
+          </div>
+        </nav>
+      </header>
+    )}
+
+    <main class={isEmbed ? '' : 'max-w-5xl mx-auto px-4 py-8'}>
+      <slot />
+    </main>
+
+    {!isEmbed && (
+      <footer class="border-t border-gray-200 mt-12 py-6 dark:border-gray-700">
+        <div class="max-w-5xl mx-auto px-4 text-center text-sm text-gray-500">
+          <p>
+            Powered by <a href="https://refyne.uk" class="text-indigo-600 hover:underline" target="_blank" rel="noopener">Refyne</a> —
+            Extract structured data from any website
+          </p>
+          <p class="mt-1">
+            <a href="https://docs.refyne.uk/examples/recipe-app" class="text-gray-400 hover:text-gray-600" target="_blank" rel="noopener">
+              View Documentation →
+            </a>
+          </p>
+        </div>
+      </footer>
+    )}
+  </body>
+</html>
+
+<style is:global>
+  @import '../styles/global.css';
+</style>

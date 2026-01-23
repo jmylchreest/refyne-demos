@@ -1,0 +1,162 @@
+---
+import Layout from '../../layouts/Layout.astro';
+import { getRecipeById, deleteRecipe, addRecipeToShoppingList } from '../../lib/db';
+
+const { id } = Astro.params;
+const db = Astro.locals.runtime.env.DB;
+
+// Handle POST actions
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+
+  if (action === 'delete') {
+    await deleteRecipe(db, id!);
+    return Astro.redirect('/');
+  }
+
+  if (action === 'add-to-shopping') {
+    await addRecipeToShoppingList(db, id!);
+    return Astro.redirect('/shopping-list');
+  }
+}
+
+const recipe = await getRecipeById(db, id!);
+
+if (!recipe) {
+  return Astro.redirect('/');
+}
+---
+
+<Layout title={recipe.title}>
+  <div class="mb-6">
+    <a href="/" class="inline-flex items-center text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200">
+      <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+      </svg>
+      Back to Recipes
+    </a>
+  </div>
+
+  <article class="card p-0 overflow-hidden">
+    {recipe.image_url && (
+      <div class="aspect-video md:aspect-[3/1] overflow-hidden">
+        <img
+          src={recipe.image_url}
+          alt={recipe.title}
+          class="w-full h-full object-cover"
+        />
+      </div>
+    )}
+
+    <div class="p-6 md:p-8">
+      <header class="mb-8">
+        <h1 class="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">
+          {recipe.title}
+        </h1>
+
+        {recipe.description && (
+          <p class="mt-4 text-lg text-gray-600 dark:text-gray-400">
+            {recipe.description}
+          </p>
+        )}
+
+        <div class="mt-6 flex flex-wrap items-center gap-4 text-sm">
+          {recipe.prep_time && (
+            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <span><strong>Prep:</strong> {recipe.prep_time}</span>
+            </div>
+          )}
+          {recipe.cook_time && (
+            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 18.657A8 8 0 016.343 7.343S7 9 9 10c0-2 .5-5 2.986-7C14 5 16.09 5.777 17.656 7.343A7.975 7.975 0 0120 13a7.975 7.975 0 01-2.343 5.657z" />
+              </svg>
+              <span><strong>Cook:</strong> {recipe.cook_time}</span>
+            </div>
+          )}
+          {recipe.servings && (
+            <div class="flex items-center gap-2 text-gray-600 dark:text-gray-400">
+              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span><strong>Servings:</strong> {recipe.servings}</span>
+            </div>
+          )}
+        </div>
+
+        <div class="mt-6 flex flex-wrap gap-3">
+          <form method="POST">
+            <input type="hidden" name="action" value="add-to-shopping" />
+            <button type="submit" class="btn btn-primary">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+              </svg>
+              Add to Shopping List
+            </button>
+          </form>
+
+          {recipe.source_url && (
+            <a href={recipe.source_url} target="_blank" rel="noopener" class="btn btn-secondary">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
+              </svg>
+              View Original
+            </a>
+          )}
+        </div>
+      </header>
+
+      <div class="grid md:grid-cols-3 gap-8">
+        <!-- Ingredients -->
+        <div class="md:col-span-1">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Ingredients</h2>
+          <ul class="space-y-2">
+            {recipe.ingredients.map((ing) => (
+              <li class="flex items-start gap-2 text-gray-700 dark:text-gray-300">
+                <span class="text-indigo-500 mt-1">•</span>
+                <span>
+                  {ing.quantity && <strong>{ing.quantity}</strong>}
+                  {ing.unit && ` ${ing.unit}`}
+                  {' '}{ing.name}
+                  {ing.notes && <span class="text-gray-500 dark:text-gray-400"> ({ing.notes})</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        <!-- Instructions -->
+        <div class="md:col-span-2">
+          <h2 class="text-xl font-semibold text-gray-900 dark:text-white mb-4">Instructions</h2>
+          <ol class="space-y-4">
+            {recipe.instructions.map((inst) => (
+              <li class="flex gap-4">
+                <span class="flex-shrink-0 w-8 h-8 bg-indigo-100 dark:bg-indigo-900 text-indigo-600 dark:text-indigo-400 rounded-full flex items-center justify-center font-semibold text-sm">
+                  {inst.step_number}
+                </span>
+                <p class="text-gray-700 dark:text-gray-300 pt-1">{inst.instruction}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </div>
+
+      <!-- Delete button -->
+      <div class="mt-12 pt-6 border-t border-gray-200 dark:border-gray-700">
+        <form method="POST" onsubmit="return confirm('Are you sure you want to delete this recipe?')">
+          <input type="hidden" name="action" value="delete" />
+          <button type="submit" class="btn btn-danger btn-sm">
+            <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+            Delete Recipe
+          </button>
+        </form>
+      </div>
+    </div>
+  </article>
+</Layout>

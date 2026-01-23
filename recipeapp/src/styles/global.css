@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+/* Custom theme variables */
+:root {
+  --color-primary: #6366f1;
+  --color-primary-dark: #4f46e5;
+  --color-accent: #f59e0b;
+  --color-success: #10b981;
+  --color-error: #ef4444;
+}
+
+/* Base styles */
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-gray-50 text-gray-900 antialiased;
+}
+
+/* Dark mode support */
+@media (prefers-color-scheme: dark) {
+  body {
+    @apply bg-gray-900 text-gray-100;
+  }
+
+  body.embed {
+    @apply bg-transparent;
+  }
+}
+
+/* Forced themes via query params */
+body.theme-light {
+  @apply bg-gray-50 text-gray-900;
+}
+
+body.theme-dark {
+  @apply bg-gray-900 text-gray-100;
+}
+
+/* Embed mode - minimal chrome */
+body.embed {
+  @apply p-2;
+}
+
+body.embed header,
+body.embed footer,
+body.embed .nav-bar {
+  @apply hidden;
+}
+
+/* Card styles */
+.card {
+  @apply bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden transition-shadow hover:shadow-md;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card {
+    @apply bg-gray-800 border-gray-700;
+  }
+}
+
+body.theme-dark .card {
+  @apply bg-gray-800 border-gray-700;
+}
+
+/* Button styles */
+.btn {
+  @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-medium transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2;
+}
+
+.btn-primary {
+  @apply bg-indigo-600 text-white hover:bg-indigo-700 focus:ring-indigo-500;
+}
+
+.btn-secondary {
+  @apply bg-gray-100 text-gray-700 hover:bg-gray-200 focus:ring-gray-500;
+}
+
+@media (prefers-color-scheme: dark) {
+  .btn-secondary {
+    @apply bg-gray-700 text-gray-200 hover:bg-gray-600;
+  }
+}
+
+body.theme-dark .btn-secondary {
+  @apply bg-gray-700 text-gray-200 hover:bg-gray-600;
+}
+
+.btn-danger {
+  @apply bg-red-600 text-white hover:bg-red-700 focus:ring-red-500;
+}
+
+.btn-sm {
+  @apply px-3 py-1.5 text-sm;
+}
+
+.btn-lg {
+  @apply px-6 py-3 text-lg;
+}
+
+/* Input styles */
+.input {
+  @apply w-full px-4 py-2 rounded-lg border border-gray-300 bg-white text-gray-900 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:border-transparent;
+}
+
+@media (prefers-color-scheme: dark) {
+  .input {
+    @apply bg-gray-800 border-gray-600 text-gray-100;
+  }
+}
+
+body.theme-dark .input {
+  @apply bg-gray-800 border-gray-600 text-gray-100;
+}
+
+/* Badge styles */
+.badge {
+  @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-primary {
+  @apply bg-indigo-100 text-indigo-800;
+}
+
+.badge-success {
+  @apply bg-green-100 text-green-800;
+}
+
+.badge-warning {
+  @apply bg-yellow-100 text-yellow-800;
+}
+
+/* Loading spinner */
+.spinner {
+  @apply animate-spin h-5 w-5 border-2 border-current border-t-transparent rounded-full;
+}
+
+/* Checkbox custom style */
+.checkbox-custom {
+  @apply h-5 w-5 rounded border-gray-300 text-indigo-600 focus:ring-indigo-500 cursor-pointer;
+}
+
+/* Recipe grid */
+.recipe-grid {
+  @apply grid gap-6;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+}
+
+/* Shopping list item */
+.shopping-item {
+  @apply flex items-center gap-3 p-3 bg-white rounded-lg border border-gray-100;
+}
+
+.shopping-item.checked {
+  @apply opacity-60;
+}
+
+.shopping-item.checked .item-name {
+  @apply line-through text-gray-400;
+}
+
+@media (prefers-color-scheme: dark) {
+  .shopping-item {
+    @apply bg-gray-800 border-gray-700;
+  }
+}
+
+body.theme-dark .shopping-item {
+  @apply bg-gray-800 border-gray-700;
+}

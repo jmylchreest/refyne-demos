@@ -1,0 +1,208 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { addRecipe } from '../lib/db';
+import { extractRecipe } from '../lib/refyne';
+
+const db = Astro.locals.runtime.env.DB;
+const env = Astro.locals.runtime.env;
+
+let error: string | null = null;
+let extractedData: any = null;
+
+if (Astro.request.method === 'POST') {
+  const formData = await Astro.request.formData();
+  const action = formData.get('action');
+
+  if (action === 'extract') {
+    const url = formData.get('url') as string;
+
+    if (!url) {
+      error = 'Please enter a URL';
+    } else {
+      const result = await extractRecipe(url, env.REFYNE_API_URL, env.DEMO_API_KEY);
+
+      if (!result.success) {
+        error = result.error || 'Failed to extract recipe';
+      } else {
+        extractedData = { ...result.data, source_url: url };
+      }
+    }
+  }
+
+  if (action === 'save') {
+    const recipeData = JSON.parse(formData.get('recipe') as string);
+
+    try {
+      const recipeId = await addRecipe(
+        db,
+        {
+          title: recipeData.title,
+          description: recipeData.description || null,
+          image_url: recipeData.image_url || null,
+          prep_time: recipeData.prep_time || null,
+          cook_time: recipeData.cook_time || null,
+          total_time: recipeData.total_time || null,
+          servings: recipeData.servings || null,
+          source_url: recipeData.source_url || null,
+        },
+        (recipeData.ingredients || []).map((ing: any, idx: number) => ({
+          name: ing.name,
+          quantity: ing.quantity || null,
+          unit: ing.unit || null,
+          notes: ing.notes || null,
+          sort_order: idx,
+        })),
+        (recipeData.instructions || []).map((inst: any) => ({
+          step_number: inst.step,
+          instruction: inst.text,
+        }))
+      );
+
+      return Astro.redirect(`/recipe/${recipeId}`);
+    } catch (e) {
+      error = 'Failed to save recipe';
+    }
+  }
+}
+---
+
+<Layout title="Add Recipe">
+  <div class="max-w-2xl mx-auto">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Add Recipe</h1>
+    <p class="text-gray-600 dark:text-gray-400 mb-8">
+      Enter a URL to extract recipe details automatically using Refyne
+    </p>
+
+    {error && (
+      <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+        <div class="flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          {error}
+        </div>
+      </div>
+    )}
+
+    {!extractedData ? (
+      <form method="POST" class="card p-6">
+        <input type="hidden" name="action" value="extract" />
+
+        <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+          Recipe URL
+        </label>
+        <div class="flex gap-3">
+          <input
+            type="url"
+            name="url"
+            placeholder="https://demo.refyne.uk/recipes/1"
+            class="input flex-1"
+            required
+          />
+          <button type="submit" class="btn btn-primary whitespace-nowrap" id="extract-btn">
+            <span class="btn-text">Extract Recipe</span>
+            <span class="btn-loading hidden">
+              <span class="spinner mr-2"></span>
+              Extracting...
+            </span>
+          </button>
+        </div>
+        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+          Try extracting from <a href="https://demo.refyne.uk/recipes" target="_blank" class="text-indigo-600 hover:underline">demo.refyne.uk/recipes</a>
+        </p>
+      </form>
+    ) : (
+      <form method="POST" class="space-y-6">
+        <input type="hidden" name="action" value="save" />
+        <input type="hidden" name="recipe" value={JSON.stringify(extractedData)} />
+
+        <div class="card p-6">
+          <div class="flex items-center justify-between mb-4">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Extracted Recipe</h2>
+            <span class="badge badge-success">Ready to save</span>
+          </div>
+
+          {extractedData.image_url && (
+            <div class="aspect-video rounded-lg overflow-hidden mb-4">
+              <img src={extractedData.image_url} alt={extractedData.title} class="w-full h-full object-cover" />
+            </div>
+          )}
+
+          <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{extractedData.title}</h3>
+
+          {extractedData.description && (
+            <p class="mt-2 text-gray-600 dark:text-gray-400">{extractedData.description}</p>
+          )}
+
+          <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
+            {extractedData.prep_time && <span>Prep: {extractedData.prep_time}</span>}
+            {extractedData.cook_time && <span>Cook: {extractedData.cook_time}</span>}
+            {extractedData.servings && <span>Servings: {extractedData.servings}</span>}
+          </div>
+
+          <div class="mt-6 grid md:grid-cols-2 gap-6">
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
+                Ingredients ({extractedData.ingredients?.length || 0})
+              </h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                {extractedData.ingredients?.slice(0, 6).map((ing: any) => (
+                  <li>• {ing.quantity} {ing.unit} {ing.name}</li>
+                ))}
+                {extractedData.ingredients?.length > 6 && (
+                  <li class="text-gray-400">+ {extractedData.ingredients.length - 6} more...</li>
+                )}
+              </ul>
+            </div>
+
+            <div>
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
+                Instructions ({extractedData.instructions?.length || 0} steps)
+              </h4>
+              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+                {extractedData.instructions?.slice(0, 3).map((inst: any) => (
+                  <li class="truncate">{inst.step}. {inst.text}</li>
+                ))}
+                {extractedData.instructions?.length > 3 && (
+                  <li class="text-gray-400">+ {extractedData.instructions.length - 3} more steps...</li>
+                )}
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex gap-3">
+          <button type="submit" class="btn btn-primary flex-1">
+            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+            </svg>
+            Save Recipe
+          </button>
+          <a href="/add" class="btn btn-secondary">Try Another URL</a>
+        </div>
+      </form>
+    )}
+
+    <div class="mt-8 p-4 bg-indigo-50 dark:bg-indigo-900/20 rounded-lg">
+      <h3 class="font-semibold text-indigo-900 dark:text-indigo-300 mb-2">How it works</h3>
+      <p class="text-sm text-indigo-700 dark:text-indigo-400">
+        This demo uses <a href="https://refyne.uk" class="underline" target="_blank">Refyne's</a> extraction API to automatically
+        parse recipe details from any webpage. The extracted data includes ingredients, instructions, cooking times, and more.
+      </p>
+    </div>
+  </div>
+</Layout>
+
+<script>
+  // Show loading state on extract
+  const form = document.querySelector('form');
+  const btn = document.getElementById('extract-btn');
+
+  form?.addEventListener('submit', () => {
+    if (btn) {
+      btn.querySelector('.btn-text')?.classList.add('hidden');
+      btn.querySelector('.btn-loading')?.classList.remove('hidden');
+      btn.setAttribute('disabled', 'true');
+    }
+  });
+</script>
