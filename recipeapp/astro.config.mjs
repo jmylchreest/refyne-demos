@@ -9,7 +9,7 @@ export default defineConfig({
       enabled: true,
     },
   }),
-  site: 'https://recipeapp.demo.refyne.uk',
+  site: 'https://recipeapp-demo.refyne.uk',
   vite: {
     plugins: [tailwindcss()],
   },
