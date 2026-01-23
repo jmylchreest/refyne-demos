@@ -48,6 +48,7 @@ if (Astro.request.method === 'POST') {
           quantity: mat.quantity || null,
           notes: mat.notes || null,
           sort_order: idx,
+          purchase_url: mat.purchase_url || null,
         })),
         (tutorialData.steps || []).map((step: any) => ({
           step_number: step.step_number,
@@ -55,6 +56,7 @@ if (Astro.request.method === 'POST') {
           instructions: step.instructions,
           tips: step.tips || null,
           image_urls: step.image_urls || [],
+          helpful_links: step.helpful_links || [],
         }))
       );
 

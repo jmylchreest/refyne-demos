@@ -18,6 +18,13 @@ export interface Material {
   quantity: string | null;
   notes: string | null;
   sort_order: number;
+  purchase_url: string | null;
+}
+
+export interface HelpfulLink {
+  title: string;
+  url: string;
+  type: 'tutorial' | 'video' | 'product' | 'reference';
 }
 
 export interface Step {
@@ -27,6 +34,7 @@ export interface Step {
   title: string;
   instructions: string;
   tips: string | null;
+  helpful_links: HelpfulLink[];
 }
 
 export interface StepImage {
@@ -82,21 +90,32 @@ export async function getTutorialById(db: D1Database, id: string): Promise<Tutor
     .bind(id)
     .all<Material>();
 
-  const { results: steps } = await db
+  const { results: stepsRaw } = await db
     .prepare('SELECT * FROM steps WHERE tutorial_id = ? ORDER BY step_number')
     .bind(id)
-    .all<Step>();
+    .all<Omit<Step, 'helpful_links'> & { helpful_links: string | null }>();
 
-  // Get images for each step
+  // Get images for each step and parse helpful_links JSON
   const stepsWithImages: StepWithImages[] = [];
-  for (const step of steps || []) {
+  for (const stepRaw of stepsRaw || []) {
     const { results: images } = await db
       .prepare('SELECT * FROM step_images WHERE step_id = ? ORDER BY sort_order')
-      .bind(step.id)
+      .bind(stepRaw.id)
       .all<StepImage>();
 
+    // Parse helpful_links from JSON string
+    let helpfulLinks: HelpfulLink[] = [];
+    if (stepRaw.helpful_links) {
+      try {
+        helpfulLinks = JSON.parse(stepRaw.helpful_links);
+      } catch {
+        helpfulLinks = [];
+      }
+    }
+
     stepsWithImages.push({
-      ...step,
+      ...stepRaw,
+      helpful_links: helpfulLinks,
       images: images || [],
     });
   }
@@ -113,7 +132,7 @@ export async function addTutorial(
   db: D1Database,
   tutorial: Omit<Tutorial, 'id' | 'created_at'>,
   materials: Omit<Material, 'id' | 'tutorial_id'>[],
-  steps: (Omit<Step, 'id' | 'tutorial_id'> & { image_urls?: string[] })[]
+  steps: (Omit<Step, 'id' | 'tutorial_id' | 'helpful_links'> & { image_urls?: string[]; helpful_links?: HelpfulLink[] })[]
 ): Promise<string> {
   const tutorialId = generateId();
 
@@ -138,22 +157,25 @@ export async function addTutorial(
   for (const mat of materials) {
     await db
       .prepare(
-        `INSERT INTO materials (id, tutorial_id, item, quantity, notes, sort_order)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO materials (id, tutorial_id, item, quantity, notes, sort_order, purchase_url)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(generateId(), tutorialId, mat.item, mat.quantity, mat.notes, mat.sort_order)
+      .bind(generateId(), tutorialId, mat.item, mat.quantity, mat.notes, mat.sort_order, mat.purchase_url)
       .run();
   }
 
   // Insert steps and their images
   for (const step of steps) {
     const stepId = generateId();
+    const helpfulLinksJson = step.helpful_links && step.helpful_links.length > 0
+      ? JSON.stringify(step.helpful_links)
+      : null;
     await db
       .prepare(
-        `INSERT INTO steps (id, tutorial_id, step_number, title, instructions, tips)
-         VALUES (?, ?, ?, ?, ?, ?)`
+        `INSERT INTO steps (id, tutorial_id, step_number, title, instructions, tips, helpful_links)
+         VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(stepId, tutorialId, step.step_number, step.title, step.instructions, step.tips)
+      .bind(stepId, tutorialId, step.step_number, step.title, step.instructions, step.tips, helpfulLinksJson)
       .run();
 
     // Insert step images
