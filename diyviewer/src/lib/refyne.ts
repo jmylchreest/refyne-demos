@@ -342,3 +342,179 @@ export async function extractTutorial(
     };
   }
 }
+
+// =========================================================================
+// Async Crawl Functions (for progress tracking UI)
+// =========================================================================
+
+export interface CrawlJobStartResponse {
+  success: boolean;
+  job_id?: string;
+  error?: string;
+}
+
+export interface CrawlJobStatusResponse {
+  success: boolean;
+  status?: string;
+  progress?: number;
+  data?: ExtractedTutorial;
+  error?: string;
+}
+
+/**
+ * Start an async extraction (crawl) job.
+ * Returns a job_id that can be polled for status.
+ */
+export async function startExtraction(
+  url: string,
+  apiUrl: string,
+  apiKey: string,
+  referer?: string
+): Promise<CrawlJobStartResponse> {
+  try {
+    const client = new Refyne({
+      apiKey,
+      baseUrl: apiUrl,
+      timeout: EXTRACTION_TIMEOUT_MS,
+      referer,
+    });
+
+    const response = await client.crawl({
+      url,
+      schema: TUTORIAL_SCHEMA,
+    });
+
+    const jobId = (response as any).job_id || (response as any).id;
+
+    if (!jobId) {
+      return {
+        success: false,
+        error: 'No job ID returned from API',
+      };
+    }
+
+    return {
+      success: true,
+      job_id: jobId,
+    };
+  } catch (error) {
+    console.error('[startExtraction] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to start extraction',
+    };
+  }
+}
+
+/**
+ * Get the status of an async extraction job.
+ * When complete, returns the extracted tutorial data.
+ */
+export async function getJobStatus(
+  jobId: string,
+  apiUrl: string,
+  apiKey: string,
+  referer?: string
+): Promise<CrawlJobStatusResponse> {
+  try {
+    const client = new Refyne({
+      apiKey,
+      baseUrl: apiUrl,
+      timeout: 30000, // Shorter timeout for status checks
+      referer,
+    });
+
+    const job = await client.jobs.get(jobId);
+    const status = (job as any).status;
+
+    // Job still in progress
+    if (status === 'pending' || status === 'crawling' || status === 'processing') {
+      return {
+        success: true,
+        status,
+        progress: (job as any).progress || 0,
+      };
+    }
+
+    // Job failed
+    if (status === 'failed') {
+      return {
+        success: false,
+        status,
+        error: (job as any).error || 'Extraction failed',
+      };
+    }
+
+    // Job completed - get results
+    if (status === 'completed') {
+      const results = await client.jobs.getResults(jobId);
+      const extracted = (results as any).data || (results as any).results?.[0]?.data || results;
+
+      return {
+        success: true,
+        status,
+        data: transformExtractedData(extracted),
+      };
+    }
+
+    // Unknown status
+    return {
+      success: true,
+      status,
+    };
+  } catch (error) {
+    console.error('[getJobStatus] Error:', error);
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get job status',
+    };
+  }
+}
+
+/**
+ * Transform raw extraction data to ExtractedTutorial format.
+ */
+function transformExtractedData(extracted: any): ExtractedTutorial {
+  return {
+    title: extracted.title || 'Untitled Tutorial',
+    overview: extracted.overview || '',
+    image_url: extracted.image_url,
+    author: extracted.author,
+    author_url: extracted.author_url,
+    difficulty: extracted.difficulty,
+    estimated_time: extracted.estimated_time,
+    glossary: (extracted.glossary || []).map((term: any) => ({
+      term: term.term || '',
+      definition: term.definition || '',
+      context: term.context,
+    })),
+    materials: (extracted.materials || []).map((mat: any) => ({
+      name: mat.name || '',
+      quantity: mat.quantity,
+      notes: mat.notes,
+      measurement: mat.measurement ? {
+        original: mat.measurement.original || '',
+        metric: mat.measurement.metric || '',
+        imperial: mat.measurement.imperial || '',
+      } : undefined,
+    })),
+    tools: (extracted.tools || []).map((tool: any) => ({
+      name: tool.name || '',
+      notes: tool.notes,
+      required: tool.required !== false,
+    })),
+    steps: (extracted.steps || []).map((step: any, idx: number) => ({
+      step_number: step.step_number || idx + 1,
+      title: step.title || `Step ${idx + 1}`,
+      instructions: step.instructions || '',
+      tips: step.tips,
+      image_urls: step.image_urls || [],
+      measurements: (step.measurements || []).map((m: any) => ({
+        original: m.original || '',
+        metric: m.metric || '',
+        imperial: m.imperial || '',
+      })),
+    })),
+    tags: extracted.tags,
+  };
+}
