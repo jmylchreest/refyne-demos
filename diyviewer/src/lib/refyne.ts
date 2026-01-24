@@ -1,16 +1,28 @@
 // Refyne API integration for DIY tutorial extraction
 
-export interface MaterialItem {
-  item: string;
-  quantity?: string;
-  notes?: string;
-  purchase_url?: string;
+export interface GlossaryTerm {
+  term: string;
+  definition: string;
+  context?: string;
 }
 
-export interface HelpfulLink {
-  title: string;
-  url: string;
-  type: 'tutorial' | 'video' | 'product' | 'reference';
+export interface MeasurementConversion {
+  original: string;
+  metric: string;
+  imperial: string;
+}
+
+export interface MaterialItem {
+  name: string;
+  quantity?: string;
+  notes?: string;
+  measurement?: MeasurementConversion;
+}
+
+export interface ToolItem {
+  name: string;
+  notes?: string;
+  required: boolean;
 }
 
 export interface TutorialStep {
@@ -19,7 +31,7 @@ export interface TutorialStep {
   instructions: string;
   tips?: string;
   image_urls?: string[];
-  helpful_links?: HelpfulLink[];
+  measurements?: MeasurementConversion[];
 }
 
 export interface ExtractedTutorial {
@@ -28,7 +40,9 @@ export interface ExtractedTutorial {
   image_url?: string;
   difficulty?: string;
   estimated_time?: string;
-  materials_and_tools: MaterialItem[];
+  glossary: GlossaryTerm[];
+  materials: MaterialItem[];
+  tools: ToolItem[];
   steps: TutorialStep[];
   tags?: string[];
 }
@@ -44,15 +58,20 @@ const TUTORIAL_SCHEMA = `
 name: DIYTutorial
 description: |
   Extracts tutorial information from DIY sites like Instructables.
-  IMPORTANT: Only include steps that contain actual actionable instructions.
-  Skip and exclude any steps that are:
-  - Introduction or overview steps (this goes in the overview field instead)
-  - Conclusion, summary, or "final thoughts" steps
-  - Steps asking users to subscribe, follow, or vote
-  - Steps promoting other content or products
-  - Steps with only images and no real instructions
-  - "Supplies" or "Materials" steps (these go in materials_and_tools instead)
-  Renumber the remaining steps sequentially starting from 1.
+
+  IMPORTANT INSTRUCTIONS:
+  1. Only include steps that contain actual actionable instructions.
+  2. Skip and exclude any steps that are:
+     - Introduction or overview steps (put this content in the overview field)
+     - Conclusion, summary, or "final thoughts" steps
+     - Steps asking users to subscribe, follow, or vote
+     - Steps promoting other content or products
+     - Steps with only images and no real instructions
+     - "Supplies" or "Materials" steps (extract these into materials/tools fields)
+  3. Renumber the remaining steps sequentially starting from 1.
+  4. Create a glossary of technical/specialized terms that may be unfamiliar to beginners.
+  5. Separate materials (consumables) from tools (reusable equipment).
+  6. For any measurements, provide both metric and imperial conversions.
 
 fields:
   - name: title
@@ -77,29 +96,85 @@ fields:
     type: string
     description: Estimated time to complete the project (e.g., "2-3 hours", "Weekend project")
 
-  - name: materials_and_tools
+  - name: glossary
     type: array
-    description: List of materials and tools needed for the project
+    description: |
+      Technical terms, jargon, or specialized vocabulary used in this tutorial that beginners might not understand.
+      Examples: "joist" (horizontal structural beam), "OSB" (oriented strand board), "miter cut" (angled cut), etc.
+      Include any industry-specific terms, material names, tool names, or techniques that need explanation.
     items:
       type: object
       properties:
-        item:
+        term:
           type: string
-          description: Name of the material or tool (be specific about type/size)
+          description: The technical term or jargon
+          required: true
+        definition:
+          type: string
+          description: Clear, beginner-friendly explanation of what this term means
+          required: true
+        context:
+          type: string
+          description: How this term is used in this specific project (optional)
+
+  - name: materials
+    type: array
+    description: |
+      Consumable materials needed for the project (things that get used up or become part of the finished product).
+      Examples: lumber, screws, paint, glue, sandpaper, etc.
+    items:
+      type: object
+      properties:
+        name:
+          type: string
+          description: Name of the material with specific type/grade if mentioned
           required: true
         quantity:
           type: string
-          description: Amount or quantity needed (if specified)
+          description: Amount needed (e.g., "4 boards", "1 gallon", "50 pieces")
         notes:
           type: string
-          description: Any additional notes about the item (sizes, alternatives, etc.)
-        purchase_url:
+          description: Additional details like dimensions, alternatives, or specifications
+        measurement:
+          type: object
+          description: If the material has a size measurement, provide conversions
+          properties:
+            original:
+              type: string
+              description: The measurement as written in the source
+              required: true
+            metric:
+              type: string
+              description: Metric equivalent (mm, cm, m, ml, L, g, kg)
+              required: true
+            imperial:
+              type: string
+              description: Imperial equivalent (in, ft, oz, lb, gal)
+              required: true
+
+  - name: tools
+    type: array
+    description: |
+      Reusable tools and equipment needed for the project.
+      Examples: drill, saw, hammer, measuring tape, clamps, safety glasses, etc.
+    items:
+      type: object
+      properties:
+        name:
           type: string
-          description: A helpful URL where this item can be purchased (prefer Amazon, Home Depot, Lowes, or major retailers). Generate a search URL if a specific product link is not available (e.g., https://www.amazon.com/s?k=item+name)
+          description: Name of the tool
+          required: true
+        notes:
+          type: string
+          description: Specific type, size, or features needed (e.g., "cordless", "with Phillips bit")
+        required:
+          type: boolean
+          description: Whether this tool is essential (true) or optional/nice-to-have (false)
+          required: true
 
   - name: steps
     type: array
-    description: Step-by-step instructions for completing the project. Only include steps with actual actionable instructions - skip intro, conclusion, and promotional steps.
+    description: Step-by-step instructions for completing the project. Only include steps with actual actionable instructions.
     items:
       type: object
       properties:
@@ -123,23 +198,23 @@ fields:
           description: URLs of images associated with this step
           items:
             type: string
-        helpful_links:
+        measurements:
           type: array
-          description: External resources that could help with this step (YouTube tutorials, technique guides, tool reviews). Generate relevant search URLs for techniques mentioned.
+          description: Any measurements mentioned in this step with conversions
           items:
             type: object
             properties:
-              title:
+              original:
                 type: string
-                description: Short descriptive title for the link
+                description: The measurement as written
                 required: true
-              url:
+              metric:
                 type: string
-                description: URL to the helpful resource. Use YouTube search (https://www.youtube.com/results?search_query=...) for technique videos, or Google search for guides.
+                description: Metric equivalent
                 required: true
-              type:
+              imperial:
                 type: string
-                description: Type of resource - one of "tutorial", "video", "product", or "reference"
+                description: Imperial equivalent
                 required: true
 
   - name: tags
@@ -152,7 +227,8 @@ fields:
 export async function extractTutorial(
   url: string,
   apiUrl: string,
-  apiKey: string
+  apiKey: string,
+  referer?: string
 ): Promise<RefyneResponse> {
   try {
     const response = await fetch(`${apiUrl}/api/v1/extract`, {
@@ -160,7 +236,7 @@ export async function extractTutorial(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'Referer': 'https://diyviewer-demo.refyne.uk',
+        'Referer': referer || 'https://diyviewer-demo.refyne.uk',
       },
       body: JSON.stringify({
         url,
@@ -196,11 +272,25 @@ export async function extractTutorial(
         image_url: extracted.image_url,
         difficulty: extracted.difficulty,
         estimated_time: extracted.estimated_time,
-        materials_and_tools: (extracted.materials_and_tools || []).map((mat: any, idx: number) => ({
-          item: mat.item || `Item ${idx + 1}`,
+        glossary: (extracted.glossary || []).map((term: any) => ({
+          term: term.term || '',
+          definition: term.definition || '',
+          context: term.context,
+        })),
+        materials: (extracted.materials || []).map((mat: any) => ({
+          name: mat.name || '',
           quantity: mat.quantity,
           notes: mat.notes,
-          purchase_url: mat.purchase_url,
+          measurement: mat.measurement ? {
+            original: mat.measurement.original || '',
+            metric: mat.measurement.metric || '',
+            imperial: mat.measurement.imperial || '',
+          } : undefined,
+        })),
+        tools: (extracted.tools || []).map((tool: any) => ({
+          name: tool.name || '',
+          notes: tool.notes,
+          required: tool.required !== false,
         })),
         steps: (extracted.steps || []).map((step: any, idx: number) => ({
           step_number: step.step_number || idx + 1,
@@ -208,10 +298,10 @@ export async function extractTutorial(
           instructions: step.instructions || '',
           tips: step.tips,
           image_urls: step.image_urls || [],
-          helpful_links: (step.helpful_links || []).map((link: any) => ({
-            title: link.title || 'Helpful Resource',
-            url: link.url || '',
-            type: link.type || 'reference',
+          measurements: (step.measurements || []).map((m: any) => ({
+            original: m.original || '',
+            metric: m.metric || '',
+            imperial: m.imperial || '',
           })),
         })),
         tags: extracted.tags,

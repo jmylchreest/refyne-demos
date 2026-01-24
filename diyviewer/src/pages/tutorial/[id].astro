@@ -79,12 +79,80 @@ if (!tutorial) {
       </div>
     </div>
 
-    <!-- Materials & Tools -->
+    <!-- Glossary Section -->
+    {tutorial.glossary && tutorial.glossary.length > 0 && (
+      <div class="card p-6 mb-8 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800">
+        <h2 class="text-xl font-bold text-blue-900 dark:text-blue-100 mb-4 flex items-center gap-2">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+          </svg>
+          Glossary
+        </h2>
+        <p class="text-sm text-blue-700 dark:text-blue-300 mb-4">
+          Technical terms and jargon used in this project:
+        </p>
+        <dl class="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {tutorial.glossary.map((term) => (
+            <div class="bg-white dark:bg-gray-800 rounded-lg p-3">
+              <dt class="font-semibold text-blue-800 dark:text-blue-200">{term.term}</dt>
+              <dd class="text-sm text-gray-700 dark:text-gray-300 mt-1">{term.definition}</dd>
+              {term.context && (
+                <dd class="text-xs text-gray-500 dark:text-gray-400 mt-1 italic">In this project: {term.context}</dd>
+              )}
+            </div>
+          ))}
+        </dl>
+      </div>
+    )}
+
+    <!-- Materials Section -->
     {tutorial.materials.length > 0 && (
+      <div class="card p-6 mb-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+            </svg>
+            Materials
+          </h2>
+          <span class="text-sm text-gray-500">{tutorial.materials.length} items</span>
+        </div>
+        <ul class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {tutorial.materials.map((mat) => (
+            <li class="flex items-start gap-2 text-gray-700 dark:text-gray-300">
+              <svg class="w-5 h-5 text-green-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <div class="flex-1">
+                <span>
+                  {mat.quantity && <strong>{mat.quantity}</strong>} {mat.name}
+                  {mat.measurement && (
+                    <span
+                      class="ml-1 text-xs px-1.5 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 rounded cursor-help"
+                      title={`${mat.measurement.metric} = ${mat.measurement.imperial}`}
+                    >
+                      {mat.measurement.original}
+                    </span>
+                  )}
+                  {mat.notes && <span class="text-gray-500 text-sm"> ({mat.notes})</span>}
+                </span>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </div>
+    )}
+
+    <!-- Tools Section -->
+    {tutorial.tools.length > 0 && (
       <div class="card p-6 mb-8">
         <div class="flex items-center justify-between mb-4">
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white">
-            Materials & Tools
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white flex items-center gap-2">
+            <svg class="w-5 h-5 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+            Tools
           </h2>
           <form method="POST">
             <input type="hidden" name="action" value="add-to-checklist" />
@@ -97,29 +165,21 @@ if (!tutorial) {
           </form>
         </div>
         <ul class="grid grid-cols-1 md:grid-cols-2 gap-3">
-          {tutorial.materials.map((mat) => (
+          {tutorial.tools.map((tool) => (
             <li class="flex items-start gap-2 text-gray-700 dark:text-gray-300">
-              <svg class="w-5 h-5 text-amber-500 mt-0.5 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+              <svg class={`w-5 h-5 mt-0.5 flex-shrink-0 ${tool.required ? 'text-orange-500' : 'text-gray-400'}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                {tool.required ? (
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                ) : (
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                )}
               </svg>
               <div class="flex-1">
                 <span>
-                  {mat.quantity && <strong>{mat.quantity}</strong>} {mat.item}
-                  {mat.notes && <span class="text-gray-500 text-sm"> ({mat.notes})</span>}
+                  {tool.name}
+                  {!tool.required && <span class="text-xs text-gray-400 ml-1">(optional)</span>}
+                  {tool.notes && <span class="text-gray-500 text-sm"> - {tool.notes}</span>}
                 </span>
-                {mat.purchase_url && (
-                  <a
-                    href={mat.purchase_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    class="ml-2 inline-flex items-center gap-1 text-xs text-amber-600 hover:text-amber-700 hover:underline"
-                  >
-                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
-                    </svg>
-                    Buy
-                  </a>
-                )}
               </div>
             </li>
           ))}

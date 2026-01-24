@@ -1,5 +1,11 @@
 // Database operations for DIY Viewer App
 
+export interface MeasurementConversion {
+  original: string;
+  metric: string;
+  imperial: string;
+}
+
 export interface Tutorial {
   id: string;
   title: string;
@@ -11,20 +17,32 @@ export interface Tutorial {
   created_at: string;
 }
 
+export interface GlossaryTerm {
+  id: string;
+  tutorial_id: string;
+  term: string;
+  definition: string;
+  context: string | null;
+  sort_order: number;
+}
+
 export interface Material {
   id: string;
   tutorial_id: string;
-  item: string;
+  name: string;
   quantity: string | null;
   notes: string | null;
+  measurement: MeasurementConversion | null;
   sort_order: number;
-  purchase_url: string | null;
 }
 
-export interface HelpfulLink {
-  title: string;
-  url: string;
-  type: 'tutorial' | 'video' | 'product' | 'reference';
+export interface Tool {
+  id: string;
+  tutorial_id: string;
+  name: string;
+  notes: string | null;
+  required: boolean;
+  sort_order: number;
 }
 
 export interface Step {
@@ -34,7 +52,7 @@ export interface Step {
   title: string;
   instructions: string;
   tips: string | null;
-  helpful_links: HelpfulLink[];
+  measurements: MeasurementConversion[];
 }
 
 export interface StepImage {
@@ -50,16 +68,19 @@ export interface StepWithImages extends Step {
 
 export interface ChecklistItem {
   id: string;
-  material_name: string;
+  name: string;
   quantity: string | null;
   notes: string | null;
   checked: boolean;
   tutorial_id: string | null;
+  item_type: 'material' | 'tool';
   created_at: string;
 }
 
 export interface TutorialWithDetails extends Tutorial {
+  glossary: GlossaryTerm[];
   materials: Material[];
+  tools: Tool[];
   steps: StepWithImages[];
 }
 
@@ -76,7 +97,7 @@ export async function getTutorials(db: D1Database): Promise<Tutorial[]> {
   return results || [];
 }
 
-// Get a single tutorial with materials and steps
+// Get a single tutorial with all details
 export async function getTutorialById(db: D1Database, id: string): Promise<TutorialWithDetails | null> {
   const tutorial = await db
     .prepare('SELECT * FROM tutorials WHERE id = ?')
@@ -85,17 +106,46 @@ export async function getTutorialById(db: D1Database, id: string): Promise<Tutor
 
   if (!tutorial) return null;
 
-  const { results: materials } = await db
+  // Get glossary terms
+  const { results: glossary } = await db
+    .prepare('SELECT * FROM glossary WHERE tutorial_id = ? ORDER BY sort_order')
+    .bind(id)
+    .all<GlossaryTerm>();
+
+  // Get materials
+  const { results: materialsRaw } = await db
     .prepare('SELECT * FROM materials WHERE tutorial_id = ? ORDER BY sort_order')
     .bind(id)
-    .all<Material>();
+    .all<Omit<Material, 'measurement'> & { measurement_json: string | null }>();
 
+  const materials: Material[] = (materialsRaw || []).map(mat => ({
+    id: mat.id,
+    tutorial_id: mat.tutorial_id,
+    name: mat.name,
+    quantity: mat.quantity,
+    notes: mat.notes,
+    sort_order: mat.sort_order,
+    measurement: mat.measurement_json ? JSON.parse(mat.measurement_json) : null,
+  }));
+
+  // Get tools
+  const { results: toolsRaw } = await db
+    .prepare('SELECT * FROM tools WHERE tutorial_id = ? ORDER BY sort_order')
+    .bind(id)
+    .all<Omit<Tool, 'required'> & { required: number }>();
+
+  const tools: Tool[] = (toolsRaw || []).map(tool => ({
+    ...tool,
+    required: tool.required === 1,
+  }));
+
+  // Get steps
   const { results: stepsRaw } = await db
     .prepare('SELECT * FROM steps WHERE tutorial_id = ? ORDER BY step_number')
     .bind(id)
-    .all<Omit<Step, 'helpful_links'> & { helpful_links: string | null }>();
+    .all<Omit<Step, 'measurements'> & { measurements_json: string | null }>();
 
-  // Get images for each step and parse helpful_links JSON
+  // Get images for each step
   const stepsWithImages: StepWithImages[] = [];
   for (const stepRaw of stepsRaw || []) {
     const { results: images } = await db
@@ -103,36 +153,73 @@ export async function getTutorialById(db: D1Database, id: string): Promise<Tutor
       .bind(stepRaw.id)
       .all<StepImage>();
 
-    // Parse helpful_links from JSON string
-    let helpfulLinks: HelpfulLink[] = [];
-    if (stepRaw.helpful_links) {
-      try {
-        helpfulLinks = JSON.parse(stepRaw.helpful_links);
-      } catch {
-        helpfulLinks = [];
-      }
-    }
-
     stepsWithImages.push({
-      ...stepRaw,
-      helpful_links: helpfulLinks,
+      id: stepRaw.id,
+      tutorial_id: stepRaw.tutorial_id,
+      step_number: stepRaw.step_number,
+      title: stepRaw.title,
+      instructions: stepRaw.instructions,
+      tips: stepRaw.tips,
+      measurements: stepRaw.measurements_json ? JSON.parse(stepRaw.measurements_json) : [],
       images: images || [],
     });
   }
 
   return {
     ...tutorial,
-    materials: materials || [],
+    glossary: glossary || [],
+    materials,
+    tools,
     steps: stepsWithImages,
   };
 }
 
-// Add a new tutorial with materials and steps
+// Input types for adding a tutorial
+export interface AddTutorialInput {
+  title: string;
+  overview: string | null;
+  image_url: string | null;
+  difficulty: string | null;
+  estimated_time: string | null;
+  source_url: string | null;
+}
+
+export interface AddGlossaryInput {
+  term: string;
+  definition: string;
+  context?: string;
+}
+
+export interface AddMaterialInput {
+  name: string;
+  quantity?: string;
+  notes?: string;
+  measurement?: MeasurementConversion;
+}
+
+export interface AddToolInput {
+  name: string;
+  notes?: string;
+  required: boolean;
+}
+
+export interface AddStepInput {
+  step_number: number;
+  title: string;
+  instructions: string;
+  tips?: string;
+  image_urls?: string[];
+  measurements?: MeasurementConversion[];
+}
+
+// Add a new tutorial with all related data
 export async function addTutorial(
   db: D1Database,
-  tutorial: Omit<Tutorial, 'id' | 'created_at'>,
-  materials: Omit<Material, 'id' | 'tutorial_id'>[],
-  steps: (Omit<Step, 'id' | 'tutorial_id' | 'helpful_links'> & { image_urls?: string[]; helpful_links?: HelpfulLink[] })[]
+  tutorial: AddTutorialInput,
+  glossary: AddGlossaryInput[],
+  materials: AddMaterialInput[],
+  tools: AddToolInput[],
+  steps: AddStepInput[]
 ): Promise<string> {
   const tutorialId = generateId();
 
@@ -153,29 +240,56 @@ export async function addTutorial(
     )
     .run();
 
-  // Insert materials
-  for (const mat of materials) {
+  // Insert glossary terms
+  for (let i = 0; i < glossary.length; i++) {
+    const term = glossary[i];
     await db
       .prepare(
-        `INSERT INTO materials (id, tutorial_id, item, quantity, notes, sort_order, purchase_url)
+        `INSERT INTO glossary (id, tutorial_id, term, definition, context, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .bind(generateId(), tutorialId, term.term, term.definition, term.context || null, i)
+      .run();
+  }
+
+  // Insert materials
+  for (let i = 0; i < materials.length; i++) {
+    const mat = materials[i];
+    const measurementJson = mat.measurement ? JSON.stringify(mat.measurement) : null;
+    await db
+      .prepare(
+        `INSERT INTO materials (id, tutorial_id, name, quantity, notes, measurement_json, sort_order)
          VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(generateId(), tutorialId, mat.item, mat.quantity, mat.notes, mat.sort_order, mat.purchase_url)
+      .bind(generateId(), tutorialId, mat.name, mat.quantity || null, mat.notes || null, measurementJson, i)
+      .run();
+  }
+
+  // Insert tools
+  for (let i = 0; i < tools.length; i++) {
+    const tool = tools[i];
+    await db
+      .prepare(
+        `INSERT INTO tools (id, tutorial_id, name, notes, required, sort_order)
+         VALUES (?, ?, ?, ?, ?, ?)`
+      )
+      .bind(generateId(), tutorialId, tool.name, tool.notes || null, tool.required ? 1 : 0, i)
       .run();
   }
 
   // Insert steps and their images
   for (const step of steps) {
     const stepId = generateId();
-    const helpfulLinksJson = step.helpful_links && step.helpful_links.length > 0
-      ? JSON.stringify(step.helpful_links)
+    const measurementsJson = step.measurements && step.measurements.length > 0
+      ? JSON.stringify(step.measurements)
       : null;
+
     await db
       .prepare(
-        `INSERT INTO steps (id, tutorial_id, step_number, title, instructions, tips, helpful_links)
+        `INSERT INTO steps (id, tutorial_id, step_number, title, instructions, tips, measurements_json)
          VALUES (?, ?, ?, ?, ?, ?, ?)`
       )
-      .bind(stepId, tutorialId, step.step_number, step.title, step.instructions, step.tips, helpfulLinksJson)
+      .bind(stepId, tutorialId, step.step_number, step.title, step.instructions, step.tips || null, measurementsJson)
       .run();
 
     // Insert step images
@@ -208,33 +322,38 @@ export async function deleteTutorial(db: D1Database, id: string): Promise<void> 
     await db.prepare('DELETE FROM step_images WHERE step_id = ?').bind(step.id).run();
   }
 
+  // Delete related data (glossary, tools handled by CASCADE)
+  await db.prepare('DELETE FROM glossary WHERE tutorial_id = ?').bind(id).run();
+  await db.prepare('DELETE FROM tools WHERE tutorial_id = ?').bind(id).run();
+
   // Delete tutorial (cascades to materials and steps)
   await db.prepare('DELETE FROM tutorials WHERE id = ?').bind(id).run();
 }
 
-// Materials checklist operations
+// Materials & Tools checklist operations
 export async function getChecklist(db: D1Database): Promise<ChecklistItem[]> {
   const { results } = await db
     .prepare('SELECT * FROM materials_checklist ORDER BY created_at DESC')
-    .all<{ id: string; material_name: string; quantity: string | null; notes: string | null; checked: number; tutorial_id: string | null; created_at: string }>();
+    .all<{ id: string; name: string; quantity: string | null; notes: string | null; checked: number; tutorial_id: string | null; item_type: string; created_at: string }>();
 
   return (results || []).map(item => ({
     ...item,
     checked: item.checked === 1,
+    item_type: (item.item_type || 'material') as 'material' | 'tool',
   }));
 }
 
 export async function addToChecklist(
   db: D1Database,
-  item: Omit<ChecklistItem, 'id' | 'created_at' | 'checked'>
+  item: { name: string; quantity?: string; notes?: string; tutorial_id?: string; item_type: 'material' | 'tool' }
 ): Promise<string> {
   const id = generateId();
   await db
     .prepare(
-      `INSERT INTO materials_checklist (id, material_name, quantity, notes, tutorial_id)
-       VALUES (?, ?, ?, ?, ?)`
+      `INSERT INTO materials_checklist (id, name, quantity, notes, tutorial_id, item_type)
+       VALUES (?, ?, ?, ?, ?, ?)`
     )
-    .bind(id, item.material_name, item.quantity, item.notes, item.tutorial_id)
+    .bind(id, item.name, item.quantity || null, item.notes || null, item.tutorial_id || null, item.item_type)
     .run();
   return id;
 }
@@ -255,17 +374,34 @@ export async function clearChecklist(db: D1Database): Promise<void> {
 }
 
 export async function addTutorialToChecklist(db: D1Database, tutorialId: string): Promise<void> {
+  // Add materials to checklist
   const { results: materials } = await db
     .prepare('SELECT * FROM materials WHERE tutorial_id = ?')
     .bind(tutorialId)
-    .all<Material>();
+    .all<{ name: string; quantity: string | null; notes: string | null }>();
 
   for (const mat of materials || []) {
     await addToChecklist(db, {
-      material_name: mat.item,
-      quantity: mat.quantity,
-      notes: mat.notes,
+      name: mat.name,
+      quantity: mat.quantity || undefined,
+      notes: mat.notes || undefined,
       tutorial_id: tutorialId,
+      item_type: 'material',
+    });
+  }
+
+  // Add required tools to checklist
+  const { results: tools } = await db
+    .prepare('SELECT * FROM tools WHERE tutorial_id = ? AND required = 1')
+    .bind(tutorialId)
+    .all<{ name: string; notes: string | null }>();
+
+  for (const tool of tools || []) {
+    await addToChecklist(db, {
+      name: tool.name,
+      notes: tool.notes || undefined,
+      tutorial_id: tutorialId,
+      item_type: 'tool',
     });
   }
 }

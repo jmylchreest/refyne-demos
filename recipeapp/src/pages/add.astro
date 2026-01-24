@@ -19,7 +19,9 @@ if (Astro.request.method === 'POST') {
     if (!url) {
       error = 'Please enter a URL';
     } else {
-      const result = await extractRecipe(url, env.REFYNE_API_URL, env.DEMO_API_KEY);
+      // Use current site URL as referer (works for both local dev and production)
+      const referer = Astro.site?.toString() || Astro.url.origin;
+      const result = await extractRecipe(url, env.REFYNE_API_URL, env.DEMO_API_KEY, referer);
 
       if (!result.success) {
         error = result.error || 'Failed to extract recipe';

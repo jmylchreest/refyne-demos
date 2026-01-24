@@ -1,0 +1,9 @@
+# Local development environment variables
+# Copy this file to .dev.vars and fill in the values
+# These are used by wrangler/astro dev mode via platformProxy
+
+# Refyne API URL (localhost for local dev)
+REFYNE_API_URL=http://localhost:8080
+
+# Demo API key - get from Refyne dashboard
+DEMO_API_KEY=your_demo_api_key_here

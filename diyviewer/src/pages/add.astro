@@ -19,7 +19,9 @@ if (Astro.request.method === 'POST') {
     if (!url) {
       error = 'Please enter a URL';
     } else {
-      const result = await extractTutorial(url, env.REFYNE_API_URL, env.DEMO_API_KEY);
+      // Use current site URL as referer (works for both local dev and production)
+      const referer = Astro.site?.toString() || Astro.url.origin;
+      const result = await extractTutorial(url, env.REFYNE_API_URL, env.DEMO_API_KEY, referer);
 
       if (!result.success) {
         error = result.error || 'Failed to extract tutorial';
@@ -43,20 +45,33 @@ if (Astro.request.method === 'POST') {
           estimated_time: tutorialData.estimated_time || null,
           source_url: tutorialData.source_url || null,
         },
-        (tutorialData.materials_and_tools || []).map((mat: any, idx: number) => ({
-          item: mat.item,
-          quantity: mat.quantity || null,
-          notes: mat.notes || null,
-          sort_order: idx,
-          purchase_url: mat.purchase_url || null,
+        // Glossary terms
+        (tutorialData.glossary || []).map((term: any) => ({
+          term: term.term,
+          definition: term.definition,
+          context: term.context,
         })),
+        // Materials (consumables)
+        (tutorialData.materials || []).map((mat: any) => ({
+          name: mat.name,
+          quantity: mat.quantity,
+          notes: mat.notes,
+          measurement: mat.measurement,
+        })),
+        // Tools (reusable equipment)
+        (tutorialData.tools || []).map((tool: any) => ({
+          name: tool.name,
+          notes: tool.notes,
+          required: tool.required !== false,
+        })),
+        // Steps with measurements
         (tutorialData.steps || []).map((step: any) => ({
           step_number: step.step_number,
           title: step.title,
           instructions: step.instructions,
-          tips: step.tips || null,
+          tips: step.tips,
           image_urls: step.image_urls || [],
-          helpful_links: step.helpful_links || [],
+          measurements: step.measurements || [],
         }))
       );
 
@@ -155,34 +170,96 @@ if (Astro.request.method === 'POST') {
             )}
           </div>
 
+          {/* Glossary Section */}
+          {extractedData.glossary?.length > 0 && (
+            <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+              <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
+                </svg>
+                Glossary ({extractedData.glossary.length} terms)
+              </h4>
+              <div class="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                {extractedData.glossary.slice(0, 4).map((term: any) => (
+                  <div><strong>{term.term}</strong>: {term.definition.length > 60 ? term.definition.slice(0, 60) + '...' : term.definition}</div>
+                ))}
+                {extractedData.glossary.length > 4 && (
+                  <div class="text-blue-600 dark:text-blue-400">+ {extractedData.glossary.length - 4} more terms...</div>
+                )}
+              </div>
+            </div>
+          )}
+
           <div class="mt-6 grid md:grid-cols-2 gap-6">
+            {/* Materials Section */}
             <div>
-              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
-                Materials & Tools ({extractedData.materials_and_tools?.length || 0})
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+                </svg>
+                Materials ({extractedData.materials?.length || 0})
               </h4>
               <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                {extractedData.materials_and_tools?.slice(0, 6).map((mat: any) => (
-                  <li>• {mat.quantity ? `${mat.quantity} ` : ''}{mat.item}{mat.notes ? ` (${mat.notes})` : ''}</li>
+                {extractedData.materials?.slice(0, 5).map((mat: any) => (
+                  <li class="flex items-start gap-1">
+                    <span class="text-green-600">•</span>
+                    <span>
+                      {mat.quantity ? `${mat.quantity} ` : ''}{mat.name}
+                      {mat.measurement && (
+                        <span class="text-xs text-gray-400 ml-1" title={`${mat.measurement.metric} / ${mat.measurement.imperial}`}>
+                          [{mat.measurement.original}]
+                        </span>
+                      )}
+                    </span>
+                  </li>
                 ))}
-                {extractedData.materials_and_tools?.length > 6 && (
-                  <li class="text-gray-400">+ {extractedData.materials_and_tools.length - 6} more...</li>
+                {extractedData.materials?.length > 5 && (
+                  <li class="text-gray-400">+ {extractedData.materials.length - 5} more...</li>
                 )}
               </ul>
             </div>
 
+            {/* Tools Section */}
             <div>
-              <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
-                Steps ({extractedData.steps?.length || 0})
+              <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+                <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                </svg>
+                Tools ({extractedData.tools?.length || 0})
               </h4>
               <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                {extractedData.steps?.slice(0, 4).map((step: any) => (
-                  <li class="truncate">{step.step_number}. {step.title}</li>
+                {extractedData.tools?.slice(0, 5).map((tool: any) => (
+                  <li class="flex items-start gap-1">
+                    <span class={tool.required ? "text-orange-600" : "text-gray-400"}>
+                      {tool.required ? '•' : '○'}
+                    </span>
+                    <span>
+                      {tool.name}
+                      {!tool.required && <span class="text-xs text-gray-400 ml-1">(optional)</span>}
+                    </span>
+                  </li>
                 ))}
-                {extractedData.steps?.length > 4 && (
-                  <li class="text-gray-400">+ {extractedData.steps.length - 4} more steps...</li>
+                {extractedData.tools?.length > 5 && (
+                  <li class="text-gray-400">+ {extractedData.tools.length - 5} more...</li>
                 )}
               </ul>
             </div>
+          </div>
+
+          {/* Steps Section */}
+          <div class="mt-6">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
+              Steps ({extractedData.steps?.length || 0})
+            </h4>
+            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
+              {extractedData.steps?.slice(0, 4).map((step: any) => (
+                <li class="truncate">{step.step_number}. {step.title}</li>
+              ))}
+              {extractedData.steps?.length > 4 && (
+                <li class="text-gray-400">+ {extractedData.steps.length - 4} more steps...</li>
+              )}
+            </ul>
           </div>
         </div>
 

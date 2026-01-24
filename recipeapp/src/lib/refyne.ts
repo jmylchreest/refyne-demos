@@ -125,7 +125,8 @@ fields:
 export async function extractRecipe(
   url: string,
   apiUrl: string,
-  apiKey: string
+  apiKey: string,
+  referer?: string
 ): Promise<RefyneResponse> {
   try {
     const response = await fetch(`${apiUrl}/api/v1/extract`, {
@@ -133,7 +134,7 @@ export async function extractRecipe(
       headers: {
         'Content-Type': 'application/json',
         'Authorization': `Bearer ${apiKey}`,
-        'Referer': 'https://recipeapp-demo.refyne.uk',
+        'Referer': referer || 'https://recipeapp-demo.refyne.uk',
       },
       body: JSON.stringify({
         url,
