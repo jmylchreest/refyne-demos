@@ -238,7 +238,7 @@ fields:
 /**
  * Create a configured Refyne SDK client.
  */
-export function createRefyneClient(apiUrl: string, apiKey: string, referer?: string): Refyne {
+function createClient(apiUrl: string, apiKey: string, referer?: string): Refyne {
   return new Refyne({
     apiKey,
     baseUrl: apiUrl,
@@ -257,10 +257,9 @@ export async function startExtraction(
   referer?: string
 ): Promise<JobStatusResponse> {
   try {
-    const client = createRefyneClient(apiUrl, apiKey, referer);
+    const client = createClient(apiUrl, apiKey, referer);
 
     // Use crawl endpoint - returns immediately with job_id
-    // Single page extraction using crawl for async support
     const result = await client.crawl({
       url,
       schema: TUTORIAL_SCHEMA,
@@ -285,7 +284,7 @@ export async function startExtraction(
     return {
       success: true,
       jobId: result.job_id,
-      status: (result.status as JobStatusResponse['status']) || 'running',
+      status: result.status || 'running',
     };
   } catch (error) {
     return {
@@ -305,9 +304,9 @@ export async function getJobStatus(
   referer?: string
 ): Promise<JobStatusResponse> {
   try {
-    const client = createRefyneClient(apiUrl, apiKey, referer);
+    const client = createClient(apiUrl, apiKey, referer);
 
-    // Get job results with merge=true to combine multi-page results
+    // Get job results with merge=true
     const data = await client.jobs.getResults(jobId, { merge: true });
 
     // Check job status
@@ -336,7 +335,7 @@ export async function getJobStatus(
     return {
       success: true,
       jobId,
-      status: (data.status as JobStatusResponse['status']) || 'running',
+      status: data.status || 'running',
       pageCount: data.page_count,
     };
   } catch (error: any) {
@@ -412,7 +411,7 @@ export async function extractTutorial(
   referer?: string
 ): Promise<RefyneResponse> {
   try {
-    const client = createRefyneClient(apiUrl, apiKey, referer);
+    const client = createClient(apiUrl, apiKey, referer);
 
     const result = await client.extract({
       url,
