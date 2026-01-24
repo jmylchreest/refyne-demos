@@ -1,61 +1,49 @@
+
+> refyne-recipeapp@0.0.1 db:export
+> npx tsx scripts/export-seed.ts *** --remote
+
 -- Seed data for Recipe App
--- Pre-loads 2 recipes from demo.refyne.uk
+-- Exported from database: 2026-01-24T20:17:48.848Z
+-- Recipe: Eggs Benedict
 
--- Recipe 1: Classic Spaghetti Carbonara
-INSERT OR REPLACE INTO recipes (id, title, description, image_url, prep_time, cook_time, total_time, servings, source_url)
+-- Recipe
+INSERT OR REPLACE INTO recipes (id, title, description, image_url, author, author_url, prep_time, cook_time, total_time, servings, source_url)
 VALUES (
-  'seed-carbonara-001',
-  'Classic Spaghetti Carbonara',
-  'A traditional Roman pasta dish made with eggs, cheese, pancetta, and black pepper. Rich, creamy, and absolutely delicious.',
-  'https://cdn.dummyjson.com/recipe-images/1.webp',
-  '10 minutes',
-  '20 minutes',
-  '30 minutes',
-  4,
-  'https://demo.refyne.uk/recipes/1'
+  '7f924992-71ab-43cd-87b6-55ca3b44bb5f',
+  'Eggs Benedict',
+  NULL,
+  'https://publicdomainrecipes.com/pix/eggs-benedict.webp',
+  NULL,
+  NULL,
+  '15 min',
+  '20 min',
+  NULL,
+  2,
+  'https://publicdomainrecipes.com/eggs-benedict/'
 );
 
-INSERT OR REPLACE INTO ingredients (id, recipe_id, name, quantity, unit, sort_order) VALUES
-  ('seed-carb-ing-1', 'seed-carbonara-001', 'spaghetti', '400', 'g', 1),
-  ('seed-carb-ing-2', 'seed-carbonara-001', 'pancetta or guanciale', '200', 'g', 2),
-  ('seed-carb-ing-3', 'seed-carbonara-001', 'large eggs', '4', '', 3),
-  ('seed-carb-ing-4', 'seed-carbonara-001', 'Pecorino Romano cheese, grated', '100', 'g', 4),
-  ('seed-carb-ing-5', 'seed-carbonara-001', 'black pepper', '', 'to taste', 5),
-  ('seed-carb-ing-6', 'seed-carbonara-001', 'salt', '', 'to taste', 6);
+-- Ingredients
+INSERT OR REPLACE INTO ingredients (id, recipe_id, name, quantity, unit, notes, sort_order) VALUES
+  ('15a33661-dd29-4853-b234-98d35699b882', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'egg yolks', '3', NULL, NULL, 0),
+  ('b368f853-ec20-4759-b214-005ff99fd267', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'lemon juice', '1', 'tablespoon', NULL, 1),
+  ('36da4d43-c97e-47af-94a9-94cfeede9e69', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'unsalted butter', '1/2', 'cup', 'melted', 2),
+  ('1adedc0c-a502-4558-b937-ce5f375a0154', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'Cayenne pepper or hot sauce', NULL, NULL, 'to taste (optional)', 3),
+  ('6f975097-4199-4c26-a881-cb2638223e6a', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'eggs', '4', NULL, NULL, 4),
+  ('6a74fecd-d9d7-4278-86f1-ffafb4f8de98', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'white vinegar', '1', 'tablespoon', NULL, 5),
+  ('d5de7f81-53af-442a-bde6-604fe070e3b8', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'english muffins or toast', '2', NULL, 'split', 6),
+  ('db905d3c-c6e2-49f0-9b72-c88933ab7e63', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'Canadian bacon or ham', '4', 'slices', NULL, 7),
+  ('90e43102-4338-4653-8915-c8460e3f70a8', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'Butter', NULL, NULL, 'for spreading on muffins (optional)', 8),
+  ('ef85e245-f480-4bc8-aa3f-bbdff384650b', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 'Chives', NULL, NULL, 'finely chopped (optional)', 9);
 
-INSERT OR REPLACE INTO instructions (id, recipe_id, step_number, instruction) VALUES
-  ('seed-carb-ins-1', 'seed-carbonara-001', 1, 'Bring a large pot of salted water to boil and cook spaghetti until al dente.'),
-  ('seed-carb-ins-2', 'seed-carbonara-001', 2, 'While pasta cooks, cut pancetta into small cubes and fry until crispy.'),
-  ('seed-carb-ins-3', 'seed-carbonara-001', 3, 'In a bowl, whisk eggs with grated cheese and plenty of black pepper.'),
-  ('seed-carb-ins-4', 'seed-carbonara-001', 4, 'Drain pasta, reserving some cooking water.'),
-  ('seed-carb-ins-5', 'seed-carbonara-001', 5, 'Toss hot pasta with pancetta, then remove from heat.'),
-  ('seed-carb-ins-6', 'seed-carbonara-001', 6, 'Add egg mixture and toss quickly, adding pasta water if needed.'),
-  ('seed-carb-ins-7', 'seed-carbonara-001', 7, 'Serve immediately with extra cheese and pepper.');
+-- Instructions
+INSERT OR REPLACE INTO instructions (id, recipe_id, step_number, instruction, image_urls) VALUES
+  ('bfb4dc8d-3de3-4a18-9c11-852016374730', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 1, 'Blend Yolks and Lemon Juice: In a blender, blend the yolks and lemon juice to create the base for the hollandaise sauce. This can optionally be done in a double boiler on a gentle simmer with whisking instead of blending to reduce curdling.', NULL),
+  ('8880c8dd-3a9e-4b5d-9e93-f4b7fcdac898', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 2, 'Drizzle Butter: Slowly pour in the melted butter while blending. The sauce should thicken and become creamy. If it becomes too viscous, add a little warm water or lemon juice to thin it out.', NULL),
+  ('98f5ef1c-8553-4308-abed-2615748ba351', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 3, 'Season Sauce: Season to taste with cayenne pepper or hot sauce.', NULL),
+  ('b5472f9b-b32e-4550-a604-6307864bbb48', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 4, 'Heat Water to Simmer: Prepare a large saucepan with at least four inches of water and bring it to a gentle simmer. Add the vinegar to help the egg whites set.', NULL),
+  ('23a14b34-8446-49bb-b4bd-e703ceed5359', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 5, 'Poach Eggs 3-4 Minutes: Gently slide the eggs into the simmering water. It helps to crack the eggs into a small bowl or ladle, bring the vessel to the surface of the water, and then drop the egg in that way. While cooking, take a spoon and stir the water into a little whirlpool; this can help displace the excess egg whites, giving the poached eggs a cleaner, firmer appearance. Cook for 3-4 minutes.', NULL),
+  ('49c82440-e219-4d74-900e-e19fa0171ad1', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 6, 'Remove Eggs: Remove the eggs with a slotted spoon and place them on a paper towel-lined plate to drain.', NULL),
+  ('ed3d05e4-d70b-4b39-8bfc-4e7c76757fba', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 7, 'Toast Muffins: Halve the muffins and toast them. Optionally butter both halves. You could substitute the muffins with any kind of spongey bread.', NULL),
+  ('f046c9b8-3e9e-48c9-9415-9bbc6197b807', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 8, 'Cook Bacon: In a skillet on medium heat, cook the Canadian bacon or ham until slightly browned.', NULL),
+  ('2468d81c-c962-4539-8184-0c34e073f5e3', '7f924992-71ab-43cd-87b6-55ca3b44bb5f', 9, 'Assemble: Place a slice of Canadian bacon on each toasted muffin half, top with a poached egg and a generous amount of hollandaise sauce. Garnish with cut chives and more cayenne pepper if desired.', NULL);
 
--- Recipe 2: Simple Avocado Toast
-INSERT OR REPLACE INTO recipes (id, title, description, image_url, prep_time, cook_time, total_time, servings, source_url)
-VALUES (
-  'seed-avocado-001',
-  'Simple Avocado Toast',
-  'A quick and healthy breakfast classic. Creamy avocado on crispy sourdough with a kick of red pepper flakes.',
-  'https://cdn.dummyjson.com/recipe-images/2.webp',
-  '5 minutes',
-  '5 minutes',
-  '10 minutes',
-  1,
-  'https://demo.refyne.uk/recipes/2'
-);
-
-INSERT OR REPLACE INTO ingredients (id, recipe_id, name, quantity, unit, sort_order) VALUES
-  ('seed-avo-ing-1', 'seed-avocado-001', 'sourdough bread', '2', 'slices', 1),
-  ('seed-avo-ing-2', 'seed-avocado-001', 'ripe avocado', '1', '', 2),
-  ('seed-avo-ing-3', 'seed-avocado-001', 'salt', '', 'to taste', 3),
-  ('seed-avo-ing-4', 'seed-avocado-001', 'black pepper', '', 'to taste', 4),
-  ('seed-avo-ing-5', 'seed-avocado-001', 'red pepper flakes', '', 'to taste', 5),
-  ('seed-avo-ing-6', 'seed-avocado-001', 'lemon juice', '1', 'tsp', 6);
-
-INSERT OR REPLACE INTO instructions (id, recipe_id, step_number, instruction) VALUES
-  ('seed-avo-ins-1', 'seed-avocado-001', 1, 'Toast the bread until golden and crispy.'),
-  ('seed-avo-ins-2', 'seed-avocado-001', 2, 'Cut avocado in half, remove pit, and scoop into a bowl.'),
-  ('seed-avo-ins-3', 'seed-avocado-001', 3, 'Mash with a fork and season with salt, pepper, and lemon juice.'),
-  ('seed-avo-ins-4', 'seed-avocado-001', 4, 'Spread onto toast and top with red pepper flakes.');

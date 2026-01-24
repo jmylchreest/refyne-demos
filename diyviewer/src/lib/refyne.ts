@@ -1,7 +1,7 @@
 // Refyne API integration for DIY tutorial extraction
-// Using the official @refyne/sdk TypeScript SDK
+// Uses the official @refyne/sdk for proper timeout handling
 
-import { Refyne, type CrawlJobResponse } from '@refyne/sdk';
+import { Refyne } from '@refyne/sdk';
 
 export interface GlossaryTerm {
   term: string;
@@ -56,21 +56,8 @@ export interface RefyneResponse {
   error?: string;
 }
 
-// Job status response from async extraction
-export interface JobStatusResponse {
-  success: boolean;
-  jobId?: string;
-  status?: 'pending' | 'running' | 'completed' | 'failed';
-  data?: ExtractedTutorial;
-  error?: string;
-  errorName?: string;
-  errorStatus?: number;
-  errorDetail?: string;
-  pageCount?: number;
-}
-
 // DIY Tutorial extraction schema for Refyne
-export const TUTORIAL_SCHEMA = `
+const TUTORIAL_SCHEMA = `
 name: DIYTutorial
 description: |
   Extracts tutorial information from DIY sites like Instructables.
@@ -102,7 +89,10 @@ fields:
 
   - name: image_url
     type: string
-    description: URL of the main project/tutorial image
+    description: |
+      URL of the main project/tutorial image (the hero/featured image).
+      Extract from markdown format ![alt](URL) - return just the URL portion.
+      Look for the first prominent image, typically from content.instructables.com or similar.
 
   - name: difficulty
     type: string
@@ -136,7 +126,7 @@ fields:
   - name: materials
     type: array
     description: |
-      Consumable materials needed for the project (things that get used up or become part of the finished product).
+      Consumable materials needed for the project (things that get used up or become part of the finished project).
       Examples: lumber, screws, paint, glue, sandpaper, etc.
     items:
       type: object
@@ -211,7 +201,11 @@ fields:
           description: Any tips, warnings, or helpful hints for this step
         image_urls:
           type: array
-          description: URLs of images associated with this step
+          description: |
+            Extract ALL image URLs from this step's content.
+            Images appear in markdown format as ![alt text](URL) - extract just the URL portion.
+            Look for URLs containing domains like content.instructables.com, i.imgur.com, etc.
+            Include every image URL found in this step - do not skip any images.
           items:
             type: string
         measurements:
@@ -240,193 +234,9 @@ fields:
       type: string
 `;
 
-/**
- * Create a Refyne SDK client with the given configuration.
- */
-function createClient(apiUrl: string, apiKey: string, referer?: string): Refyne {
-  console.log('[refyne] Creating SDK client with baseUrl:', apiUrl, 'referer:', referer);
-  return new Refyne({
-    apiKey,
-    baseUrl: apiUrl,
-    referer: referer || 'https://diyviewer-demo.refyne.uk',
-  });
-}
+// Extraction timeout: 3 minutes for complex tutorials
+const EXTRACTION_TIMEOUT_MS = 180000;
 
-/**
- * Start an async extraction job. Returns immediately with a job ID.
- * Use getJobStatus to poll for completion.
- */
-export async function startExtraction(
-  url: string,
-  apiUrl: string,
-  apiKey: string,
-  referer?: string
-): Promise<JobStatusResponse> {
-  try {
-    const client = createClient(apiUrl, apiKey, referer);
-    console.log('[refyne] Starting crawl for URL:', url);
-
-    const result: CrawlJobResponse = await client.crawl({
-      url,
-      schema: TUTORIAL_SCHEMA,
-      options: {
-        max_pages: 1,
-        max_urls: 1,
-        extract_from_seeds: true,
-      },
-    });
-
-    console.log('[refyne] Crawl response:', JSON.stringify(result, null, 2));
-
-    // If job completed immediately, we get results directly
-    if (result.status === 'completed' && result.data) {
-      return {
-        success: true,
-        jobId: result.job_id,
-        status: 'completed',
-        data: transformExtractedData(result.data),
-      };
-    }
-
-    // Job still running, return job_id for polling
-    return {
-      success: true,
-      jobId: result.job_id,
-      status: (result.status as 'pending' | 'running' | 'completed' | 'failed') || 'running',
-    };
-  } catch (error: any) {
-    console.error('[refyne] Extraction error:', {
-      name: error?.name,
-      message: error?.message,
-      status: error?.status,
-      detail: error?.detail,
-      stack: error?.stack,
-    });
-    return {
-      success: false,
-      error: error?.message || 'Failed to start extraction',
-      errorName: error?.name,
-      errorStatus: error?.status,
-      errorDetail: error?.detail,
-    };
-  }
-}
-
-/**
- * Poll for job status and results.
- */
-export async function getJobStatus(
-  jobId: string,
-  apiUrl: string,
-  apiKey: string,
-  referer?: string
-): Promise<JobStatusResponse> {
-  try {
-    const client = createClient(apiUrl, apiKey, referer);
-    console.log('[refyne] Getting job status for:', jobId);
-
-    // Use the SDK's jobs.getResults method with merge=true
-    const data = await client.jobs.getResults(jobId, { merge: true });
-
-    console.log('[refyne] Job results:', JSON.stringify(data, null, 2));
-
-    // Check job status
-    if ((data as any).status === 'failed') {
-      return {
-        success: false,
-        jobId,
-        status: 'failed',
-        error: (data as any).error_message || 'Extraction failed',
-      };
-    }
-
-    if ((data as any).status === 'completed') {
-      // Results are in data.merged (when merge=true) or data.results[0]
-      const extracted = (data as any).merged || ((data as any).results && (data as any).results[0]) || {};
-      return {
-        success: true,
-        jobId,
-        status: 'completed',
-        data: transformExtractedData(extracted),
-        pageCount: (data as any).page_count,
-      };
-    }
-
-    // Still running
-    return {
-      success: true,
-      jobId,
-      status: (data as any).status || 'running',
-      pageCount: (data as any).page_count,
-    };
-  } catch (error: any) {
-    // 404 means job doesn't exist or results not ready yet
-    if (error?.status === 404 || error?.statusCode === 404) {
-      return {
-        success: true,
-        jobId,
-        status: 'running',
-      };
-    }
-
-    console.error('[refyne] Job status error:', error);
-    return {
-      success: false,
-      error: error?.message || 'Failed to get job status',
-    };
-  }
-}
-
-/**
- * Transform raw extracted data into our ExtractedTutorial interface.
- */
-function transformExtractedData(extracted: any): ExtractedTutorial {
-  return {
-    title: extracted.title || 'Untitled Tutorial',
-    overview: extracted.overview || '',
-    image_url: extracted.image_url,
-    difficulty: extracted.difficulty,
-    estimated_time: extracted.estimated_time,
-    glossary: (extracted.glossary || []).map((term: any) => ({
-      term: term.term || '',
-      definition: term.definition || '',
-      context: term.context,
-    })),
-    materials: (extracted.materials || []).map((mat: any) => ({
-      name: mat.name || '',
-      quantity: mat.quantity,
-      notes: mat.notes,
-      measurement: mat.measurement ? {
-        original: mat.measurement.original || '',
-        metric: mat.measurement.metric || '',
-        imperial: mat.measurement.imperial || '',
-      } : undefined,
-    })),
-    tools: (extracted.tools || []).map((tool: any) => ({
-      name: tool.name || '',
-      notes: tool.notes,
-      required: tool.required !== false,
-    })),
-    steps: (extracted.steps || []).map((step: any, idx: number) => ({
-      step_number: step.step_number || idx + 1,
-      title: step.title || `Step ${idx + 1}`,
-      instructions: step.instructions || '',
-      tips: step.tips,
-      image_urls: step.image_urls || [],
-      measurements: (step.measurements || []).map((m: any) => ({
-        original: m.original || '',
-        metric: m.metric || '',
-        imperial: m.imperial || '',
-      })),
-    })),
-    tags: extracted.tags,
-  };
-}
-
-/**
- * Legacy synchronous extraction - may timeout on large pages.
- * Consider using startExtraction + getJobStatus for better reliability.
- */
 export async function extractTutorial(
   url: string,
   apiUrl: string,
@@ -434,35 +244,89 @@ export async function extractTutorial(
   referer?: string
 ): Promise<RefyneResponse> {
   try {
-    const client = createClient(apiUrl, apiKey, referer);
-    console.log('[refyne] Extracting (sync) from URL:', url);
-
-    const result = await client.extract({
-      url,
-      schema: TUTORIAL_SCHEMA,
+    // Create client with extended timeout for extraction operations
+    // Referer is required for demo/partner API keys with referrer restrictions
+    const client = new Refyne({
+      apiKey,
+      baseUrl: apiUrl,
+      timeout: EXTRACTION_TIMEOUT_MS,
+      referer,
     });
 
-    console.log('[refyne] Extract response:', JSON.stringify(result, null, 2));
+    // Create AbortController for timeout handling
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), EXTRACTION_TIMEOUT_MS);
 
-    if ((result as any).error) {
+    try {
+      // Use the SDK's extract method
+      const response = await client.extract({
+        url,
+        schema: TUTORIAL_SCHEMA,
+      });
+
+      clearTimeout(timeoutId);
+
+      // Extract the tutorial data from the response
+      const extracted = (response as any).data || response;
+
+      return {
+        success: true,
+        data: {
+          title: extracted.title || 'Untitled Tutorial',
+          overview: extracted.overview || '',
+          image_url: extracted.image_url,
+          difficulty: extracted.difficulty,
+          estimated_time: extracted.estimated_time,
+          glossary: (extracted.glossary || []).map((term: any) => ({
+            term: term.term || '',
+            definition: term.definition || '',
+            context: term.context,
+          })),
+          materials: (extracted.materials || []).map((mat: any) => ({
+            name: mat.name || '',
+            quantity: mat.quantity,
+            notes: mat.notes,
+            measurement: mat.measurement ? {
+              original: mat.measurement.original || '',
+              metric: mat.measurement.metric || '',
+              imperial: mat.measurement.imperial || '',
+            } : undefined,
+          })),
+          tools: (extracted.tools || []).map((tool: any) => ({
+            name: tool.name || '',
+            notes: tool.notes,
+            required: tool.required !== false,
+          })),
+          steps: (extracted.steps || []).map((step: any, idx: number) => ({
+            step_number: step.step_number || idx + 1,
+            title: step.title || `Step ${idx + 1}`,
+            instructions: step.instructions || '',
+            tips: step.tips,
+            image_urls: step.image_urls || [],
+            measurements: (step.measurements || []).map((m: any) => ({
+              original: m.original || '',
+              metric: m.metric || '',
+              imperial: m.imperial || '',
+            })),
+          })),
+          tags: extracted.tags,
+        },
+      };
+    } catch (err) {
+      clearTimeout(timeoutId);
+      throw err;
+    }
+  } catch (error) {
+    // Handle RefyneError types from the SDK
+    if (error && typeof error === 'object' && 'message' in error) {
       return {
         success: false,
-        error: (result as any).error,
+        error: (error as Error).message,
       };
     }
-
-    // Extract the tutorial data from the response
-    const extracted = result.data || result;
-
-    return {
-      success: true,
-      data: transformExtractedData(extracted),
-    };
-  } catch (error: any) {
-    console.error('[refyne] Extract error:', error);
     return {
       success: false,
-      error: error?.message || 'Failed to extract tutorial',
+      error: error instanceof Error ? error.message : 'Failed to extract tutorial',
     };
   }
 }

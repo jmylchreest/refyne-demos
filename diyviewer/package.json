@@ -14,19 +14,16 @@
     "db:seed": "wrangler d1 execute refyne-diyviewer-db --local --file=./migrations/002_seed.sql",
     "db:seed:remote": "wrangler d1 execute refyne-diyviewer-db --remote --file=./migrations/002_seed.sql",
     "db:reset": "wrangler d1 execute refyne-diyviewer-db --local --file=./migrations/003_reset.sql",
-    "db:export": "npx tsx scripts/export-seed.ts",
-    "db:list": "wrangler d1 execute refyne-diyviewer-db --local --command=\"SELECT id, title FROM tutorials\"",
     "deploy": "npm run build && wrangler pages deploy dist"
   },
   "dependencies": {
     "@astrojs/cloudflare": "^12.5.1",
-    "@refyne/sdk": "github:jmylchreest/refyne-sdk-ts",
+    "@refyne/sdk": "file:../../refyne-sdk-ts",
     "astro": "^5.16.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "tailwindcss": "^4.1.18",
-    "tsx": "^4.19.0",
     "typescript": "^5.9.3",
     "wrangler": "^4.60.0"
   }
