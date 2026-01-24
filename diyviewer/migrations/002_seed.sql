@@ -1,7 +1,3 @@
-
-> refyne-diyviewer@0.0.1 db:export
-> npx tsx scripts/export-seed.ts *** --remote
-
 -- Seed data for DIY Viewer App
 -- Exported from database: 2026-01-24T21:23:35.661Z
 -- Tutorial: Simple Animatronic Eyes
