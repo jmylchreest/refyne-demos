@@ -26,6 +26,9 @@ const bodyClasses = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Victor+Mono:ital,wght@0,400;0,700;1,400;1,700&display=swap" rel="stylesheet" />
     <title>{title} | DIY Viewer Demo</title>
   </head>
   <body class={bodyClasses}>
@@ -55,7 +58,7 @@ const bodyClasses = [
       <footer class="border-t border-gray-200 mt-12 py-6 dark:border-gray-700">
         <div class="max-w-5xl mx-auto px-4 text-center text-sm text-gray-500">
           <p>
-            Powered by <a href="https://refyne.uk" class="text-amber-600 hover:underline" target="_blank" rel="noopener">Refyne</a> —
+            Powered by <a href="https://refyne.uk" class="text-amber-600 hover:underline refyne-brand" target="_blank" rel="noopener">Refyne</a> —
             Extract structured data from any website
           </p>
           <p class="mt-1">

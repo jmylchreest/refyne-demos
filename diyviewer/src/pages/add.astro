@@ -67,7 +67,7 @@ if (Astro.request.method === 'POST') {
   <div class="max-w-2xl mx-auto">
     <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-2">Add Project</h1>
     <p class="text-gray-600 dark:text-gray-400 mb-8">
-      Enter a URL to extract DIY tutorial details automatically using Refyne
+      Enter a URL to extract DIY tutorial details automatically using <span class="refyne-brand">Refyne</span>
     </p>
 
     <!-- Error display -->
@@ -167,7 +167,7 @@ if (Astro.request.method === 'POST') {
             <div id="step-3-icon" class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-400">
               <span class="text-xs font-medium">3</span>
             </div>
-            <span id="step-3-text" class="text-gray-500 dark:text-gray-400">Extract structured data with AI</span>
+            <span id="step-3-text" class="text-gray-500 dark:text-gray-400">Extract structured data</span>
           </div>
 
           <!-- Step 4: Complete -->
@@ -280,7 +280,7 @@ if (Astro.request.method === 'POST') {
     <div class="mt-8 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
       <h3 class="font-semibold text-amber-900 dark:text-amber-300 mb-2">How it works</h3>
       <p class="text-sm text-amber-700 dark:text-amber-400">
-        This demo uses <a href="https://refyne.uk" class="underline" target="_blank">Refyne's</a> extraction API to automatically
+        This demo uses <a href="https://refyne.uk" class="underline refyne-brand" target="_blank">Refyne</a>'s extraction API to automatically
         parse tutorial details from DIY websites. The extracted data includes materials, step-by-step instructions with images, and more.
       </p>
     </div>
@@ -632,7 +632,7 @@ if (Astro.request.method === 'POST') {
             if (elapsed < 10) {
               advanceToStep(2, 'Fetching page content...');
             } else if (elapsed < 30) {
-              advanceToStep(3, 'Extracting data with AI...');
+              advanceToStep(3, 'Extracting structured data...');
             } else {
               // Cycle through messages for longer extractions
               const messages = [

@@ -1,5 +1,12 @@
 @import "tailwindcss";
 
+/* Refyne brand styling - Victor Mono italic */
+.refyne-brand {
+  font-family: 'Victor Mono', ui-monospace, monospace;
+  font-style: italic;
+  font-weight: 700;
+}
+
 /* Custom theme variables - amber/DIY theme */
 :root {
   --color-primary: #f59e0b;
