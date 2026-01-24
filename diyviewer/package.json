@@ -17,14 +17,14 @@
     "deploy": "npm run build && wrangler pages deploy dist"
   },
   "dependencies": {
-    "astro": "^5.16.13",
     "@astrojs/cloudflare": "^12.5.1",
-    "@refyne/sdk": "github:jmylchreest/refyne-sdk-ts"
+    "@refyne/sdk": "github:jmylchreest/refyne-sdk-ts",
+    "astro": "^5.16.13"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "tailwindcss": "^4.1.18",
-    "wrangler": "^4.60.0",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "wrangler": "^4.60.0"
   }
 }
