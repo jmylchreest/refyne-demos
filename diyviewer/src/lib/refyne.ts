@@ -1,5 +1,7 @@
 // Refyne API integration for DIY tutorial extraction
-import { Refyne } from '@refyne/sdk';
+// Using the official @refyne/sdk TypeScript SDK
+
+import { Refyne, type CrawlJobResponse } from '@refyne/sdk';
 
 export interface GlossaryTerm {
   term: string;
@@ -236,9 +238,10 @@ fields:
 `;
 
 /**
- * Create a configured Refyne SDK client.
+ * Create a Refyne SDK client with the given configuration.
  */
 function createClient(apiUrl: string, apiKey: string, referer?: string): Refyne {
+  console.log('[refyne] Creating SDK client with baseUrl:', apiUrl, 'referer:', referer);
   return new Refyne({
     apiKey,
     baseUrl: apiUrl,
@@ -258,9 +261,9 @@ export async function startExtraction(
 ): Promise<JobStatusResponse> {
   try {
     const client = createClient(apiUrl, apiKey, referer);
+    console.log('[refyne] Starting crawl for URL:', url);
 
-    // Use crawl endpoint - returns immediately with job_id
-    const result = await client.crawl({
+    const result: CrawlJobResponse = await client.crawl({
       url,
       schema: TUTORIAL_SCHEMA,
       options: {
@@ -270,7 +273,9 @@ export async function startExtraction(
       },
     });
 
-    // If job completed immediately (fast extraction), we get results directly
+    console.log('[refyne] Crawl response:', JSON.stringify(result, null, 2));
+
+    // If job completed immediately, we get results directly
     if (result.status === 'completed' && result.data) {
       return {
         success: true,
@@ -284,15 +289,13 @@ export async function startExtraction(
     return {
       success: true,
       jobId: result.job_id,
-      status: result.status || 'running',
+      status: (result.status as 'pending' | 'running' | 'completed' | 'failed') || 'running',
     };
   } catch (error: any) {
-    // Extract detailed error info from SDK errors
-    const errorMessage = error?.message || error?.detail || String(error);
-    const statusCode = error?.status || error?.statusCode;
+    console.error('[refyne] Extraction error:', error);
     return {
       success: false,
-      error: statusCode ? `${errorMessage} (${statusCode})` : errorMessage,
+      error: error?.message || 'Failed to start extraction',
     };
   }
 }
@@ -308,29 +311,32 @@ export async function getJobStatus(
 ): Promise<JobStatusResponse> {
   try {
     const client = createClient(apiUrl, apiKey, referer);
+    console.log('[refyne] Getting job status for:', jobId);
 
-    // Get job results with merge=true
+    // Use the SDK's jobs.getResults method with merge=true
     const data = await client.jobs.getResults(jobId, { merge: true });
 
+    console.log('[refyne] Job results:', JSON.stringify(data, null, 2));
+
     // Check job status
-    if (data.status === 'failed') {
+    if ((data as any).status === 'failed') {
       return {
         success: false,
         jobId,
         status: 'failed',
-        error: data.error_message || 'Extraction failed',
+        error: (data as any).error_message || 'Extraction failed',
       };
     }
 
-    if (data.status === 'completed') {
+    if ((data as any).status === 'completed') {
       // Results are in data.merged (when merge=true) or data.results[0]
-      const extracted = data.merged || (data.results && data.results[0]) || {};
+      const extracted = (data as any).merged || ((data as any).results && (data as any).results[0]) || {};
       return {
         success: true,
         jobId,
         status: 'completed',
         data: transformExtractedData(extracted),
-        pageCount: data.page_count,
+        pageCount: (data as any).page_count,
       };
     }
 
@@ -338,11 +344,11 @@ export async function getJobStatus(
     return {
       success: true,
       jobId,
-      status: data.status || 'running',
-      pageCount: data.page_count,
+      status: (data as any).status || 'running',
+      pageCount: (data as any).page_count,
     };
   } catch (error: any) {
-    // Handle 404 (job not found or results not ready yet)
+    // 404 means job doesn't exist or results not ready yet
     if (error?.status === 404 || error?.statusCode === 404) {
       return {
         success: true,
@@ -350,9 +356,11 @@ export async function getJobStatus(
         status: 'running',
       };
     }
+
+    console.error('[refyne] Job status error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to get job status',
+      error: error?.message || 'Failed to get job status',
     };
   }
 }
@@ -415,11 +423,21 @@ export async function extractTutorial(
 ): Promise<RefyneResponse> {
   try {
     const client = createClient(apiUrl, apiKey, referer);
+    console.log('[refyne] Extracting (sync) from URL:', url);
 
     const result = await client.extract({
       url,
       schema: TUTORIAL_SCHEMA,
     });
+
+    console.log('[refyne] Extract response:', JSON.stringify(result, null, 2));
+
+    if ((result as any).error) {
+      return {
+        success: false,
+        error: (result as any).error,
+      };
+    }
 
     // Extract the tutorial data from the response
     const extracted = result.data || result;
@@ -428,10 +446,11 @@ export async function extractTutorial(
       success: true,
       data: transformExtractedData(extracted),
     };
-  } catch (error) {
+  } catch (error: any) {
+    console.error('[refyne] Extract error:', error);
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to extract tutorial',
+      error: error?.message || 'Failed to extract tutorial',
     };
   }
 }
