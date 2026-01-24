@@ -63,6 +63,9 @@ export interface JobStatusResponse {
   status?: 'pending' | 'running' | 'completed' | 'failed';
   data?: ExtractedTutorial;
   error?: string;
+  errorName?: string;
+  errorStatus?: number;
+  errorDetail?: string;
   pageCount?: number;
 }
 
@@ -292,10 +295,19 @@ export async function startExtraction(
       status: (result.status as 'pending' | 'running' | 'completed' | 'failed') || 'running',
     };
   } catch (error: any) {
-    console.error('[refyne] Extraction error:', error);
+    console.error('[refyne] Extraction error:', {
+      name: error?.name,
+      message: error?.message,
+      status: error?.status,
+      detail: error?.detail,
+      stack: error?.stack,
+    });
     return {
       success: false,
       error: error?.message || 'Failed to start extraction',
+      errorName: error?.name,
+      errorStatus: error?.status,
+      errorDetail: error?.detail,
     };
   }
 }
