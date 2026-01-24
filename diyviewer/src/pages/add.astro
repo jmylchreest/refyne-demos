@@ -373,11 +373,13 @@ if (Astro.request.method === 'POST') {
   function updateElapsed() {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
     progressTime!.textContent = `${elapsed}s`;
-    // Progress based on current step (each step is ~25%)
-    const baseProgress = currentStep * 25;
-    const stepProgress = Math.min((elapsed % 30) * 0.8, 20); // Slow progress within step
-    const progress = Math.min(baseProgress + stepProgress, 95);
-    progressBar!.style.width = `${progress}%`;
+    // Asymptotic progress that never goes backwards
+    // Starts slow, gradually approaches 95% over ~3-5 minutes
+    // At 30s: ~33%, at 60s: ~55%, at 120s: ~77%, at 180s: ~86%, at 300s: ~92%
+    const maxProgress = 95;
+    const halfwayTime = 90; // Time to reach ~63% of max progress
+    const progress = maxProgress * (1 - Math.exp(-elapsed / halfwayTime));
+    progressBar!.style.width = `${Math.max(5, progress)}%`;
   }
 
   function setStep(step: number, status: 'pending' | 'active' | 'complete') {
