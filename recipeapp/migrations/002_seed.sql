@@ -1,7 +1,3 @@
-
-> refyne-recipeapp@0.0.1 db:export
-> npx tsx scripts/export-seed.ts *** --remote
-
 -- Seed data for Recipe App
 -- Exported from database: 2026-01-24T20:17:48.848Z
 -- Recipe: Eggs Benedict

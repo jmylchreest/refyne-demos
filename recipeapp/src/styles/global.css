@@ -170,8 +170,9 @@ body.theme-dark .shopping-item {
   @apply bg-gray-800 border-gray-700;
 }
 
-/* Refyne brand styling */
+/* Refyne brand styling - Victor Mono italic */
 .refyne-brand {
-  font-family: 'Victor Mono', monospace;
+  font-family: 'Victor Mono', ui-monospace, monospace;
+  font-style: italic;
   font-weight: 700;
 }
