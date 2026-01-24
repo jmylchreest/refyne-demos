@@ -14,15 +14,19 @@
     "db:seed": "wrangler d1 execute refyne-recipeapp-db --local --file=./migrations/002_seed.sql",
     "db:seed:remote": "wrangler d1 execute refyne-recipeapp-db --remote --file=./migrations/002_seed.sql",
     "db:reset": "wrangler d1 execute refyne-recipeapp-db --local --file=./migrations/003_reset.sql",
+    "db:export": "npx tsx scripts/export-seed.ts",
+    "db:list": "wrangler d1 execute refyne-recipeapp-db --local --command=\"SELECT id, title FROM recipes\"",
     "deploy": "npm run build && wrangler pages deploy dist"
   },
   "dependencies": {
     "astro": "^5.16.13",
-    "@astrojs/cloudflare": "^12.5.1"
+    "@astrojs/cloudflare": "^12.5.1",
+    "@refyne/sdk": "github:jmylchreest/refyne-sdk-ts"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",
     "tailwindcss": "^4.1.18",
+    "tsx": "^4.19.0",
     "wrangler": "^4.60.0",
     "typescript": "^5.9.3"
   }

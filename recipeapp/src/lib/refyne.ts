@@ -1,9 +1,14 @@
 // Refyne API integration for recipe extraction
+// Using the official @refyne/sdk TypeScript SDK
+
+import { Refyne } from '@refyne/sdk';
 
 export interface ExtractedRecipe {
   title: string;
   description?: string;
   image_url?: string;
+  author?: string;
+  author_url?: string;
   prep_time?: string;
   cook_time?: string;
   total_time?: string;
@@ -17,6 +22,7 @@ export interface ExtractedRecipe {
   instructions: {
     step: number;
     text: string;
+    image_urls?: string[];
   }[];
   nutrition?: {
     calories?: string;
@@ -36,7 +42,20 @@ export interface RefyneResponse {
 // Recipe extraction schema for Refyne
 const RECIPE_SCHEMA = `
 name: Recipe
-description: Extract recipe details from a webpage
+description: |
+  Extract recipe details from a webpage.
+
+  IMPORTANT: Only extract images that are directly relevant to the recipe:
+  - The main recipe/dish photo
+  - Step-by-step cooking process photos
+  - Photos showing ingredients or final plating
+
+  DO NOT extract:
+  - Author/profile photos
+  - Advertisement images
+  - Social media icons
+  - Navigation or UI elements
+  - Unrelated promotional images
 
 fields:
   - name: title
@@ -46,11 +65,19 @@ fields:
 
   - name: description
     type: string
-    description: Brief description or intro paragraph
+    description: Brief description or intro paragraph about the dish
+
+  - name: author
+    type: string
+    description: Name of the recipe author or content creator
+
+  - name: author_url
+    type: string
+    description: URL to the author's profile page or website (if available)
 
   - name: image_url
     type: string
-    description: URL of the main recipe image
+    description: URL of the main recipe/dish image (the hero photo of the finished dish)
 
   - name: prep_time
     type: string
@@ -90,7 +117,7 @@ fields:
 
   - name: instructions
     type: array
-    description: Step-by-step instructions
+    description: Step-by-step cooking instructions
     items:
       type: object
       properties:
@@ -100,7 +127,12 @@ fields:
         text:
           type: string
           required: true
-          description: Instruction text
+          description: Instruction text for this step
+        image_urls:
+          type: array
+          description: URLs of images showing this cooking step (only include relevant cooking photos)
+          items:
+            type: string
 
   - name: nutrition
     type: object
@@ -117,11 +149,26 @@ fields:
 
   - name: tags
     type: array
-    description: Recipe categories or tags
+    description: Recipe categories or tags (e.g., "vegetarian", "quick", "Italian")
     items:
       type: string
 `;
 
+/**
+ * Create a Refyne SDK client with the given configuration.
+ */
+function createClient(apiUrl: string, apiKey: string, referer?: string): Refyne {
+  return new Refyne({
+    apiKey,
+    baseUrl: apiUrl,
+    referer: referer || 'https://recipeapp-demo.refyne.uk',
+  });
+}
+
+/**
+ * Extract recipe data from a URL using the Refyne SDK.
+ * Uses synchronous extraction - waits for the result.
+ */
 export async function extractRecipe(
   url: string,
   apiUrl: string,
@@ -129,38 +176,22 @@ export async function extractRecipe(
   referer?: string
 ): Promise<RefyneResponse> {
   try {
-    const response = await fetch(`${apiUrl}/api/v1/extract`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'Referer': referer || 'https://recipeapp-demo.refyne.uk',
-      },
-      body: JSON.stringify({
-        url,
-        schema: RECIPE_SCHEMA,
-      }),
+    const client = createClient(apiUrl, apiKey, referer);
+
+    const result = await client.extract({
+      url,
+      schema: RECIPE_SCHEMA,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
+    if (!result || result.error) {
       return {
         success: false,
-        error: errorData.error || `API error: ${response.status}`,
-      };
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      return {
-        success: false,
-        error: data.error,
+        error: result?.error || 'Extraction failed',
       };
     }
 
     // Extract the recipe data from the response
-    const extracted = data.data || data;
+    const extracted = result.data || result;
 
     return {
       success: true,
@@ -168,6 +199,8 @@ export async function extractRecipe(
         title: extracted.title || 'Untitled Recipe',
         description: extracted.description,
         image_url: extracted.image_url,
+        author: extracted.author,
+        author_url: extracted.author_url,
         prep_time: extracted.prep_time,
         cook_time: extracted.cook_time,
         total_time: extracted.total_time,
@@ -181,6 +214,7 @@ export async function extractRecipe(
         instructions: (extracted.instructions || []).map((inst: any, idx: number) => ({
           step: inst.step || idx + 1,
           text: inst.text || inst,
+          image_urls: inst.image_urls || [],
         })),
         nutrition: extracted.nutrition,
         tags: extracted.tags,
@@ -193,3 +227,5 @@ export async function extractRecipe(
     };
   }
 }
+
+export { RECIPE_SCHEMA };
