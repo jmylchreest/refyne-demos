@@ -34,8 +34,11 @@ function runD1Query(sql: string, remote: boolean): any[] {
 }
 
 function generateRecipeSeed(recipeId: string, remote: boolean): string {
+  // Escape recipeId for safe SQL interpolation
+  const safeId = escapeSQL(recipeId);
+
   // Fetch recipe
-  const recipes = runD1Query(`SELECT * FROM recipes WHERE id = '${recipeId}'`, remote);
+  const recipes = runD1Query(`SELECT * FROM recipes WHERE id = ${safeId}`, remote);
   if (recipes.length === 0) {
     console.error(`Recipe not found: ${recipeId}`);
     process.exit(1);
@@ -44,13 +47,13 @@ function generateRecipeSeed(recipeId: string, remote: boolean): string {
 
   // Fetch ingredients
   const ingredients = runD1Query(
-    `SELECT * FROM ingredients WHERE recipe_id = '${recipeId}' ORDER BY sort_order`,
+    `SELECT * FROM ingredients WHERE recipe_id = ${safeId} ORDER BY sort_order`,
     remote
   );
 
   // Fetch instructions
   const instructions = runD1Query(
-    `SELECT * FROM instructions WHERE recipe_id = '${recipeId}' ORDER BY step_number`,
+    `SELECT * FROM instructions WHERE recipe_id = ${safeId} ORDER BY step_number`,
     remote
   );
 

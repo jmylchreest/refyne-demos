@@ -169,3 +169,9 @@ body.theme-dark .input {
 body.theme-dark .shopping-item {
   @apply bg-gray-800 border-gray-700;
 }
+
+/* Refyne brand styling */
+.refyne-brand {
+  font-family: 'Victor Mono', monospace;
+  font-weight: 700;
+}

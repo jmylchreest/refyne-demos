@@ -21,6 +21,8 @@ if (Astro.request.method === 'POST') {
           title: tutorialData.title,
           overview: tutorialData.overview || null,
           image_url: tutorialData.image_url || null,
+          author: tutorialData.author || null,
+          author_url: tutorialData.author_url || null,
           difficulty: tutorialData.difficulty || null,
           estimated_time: tutorialData.estimated_time || null,
           source_url: tutorialData.source_url || null,
@@ -101,7 +103,7 @@ if (Astro.request.method === 'POST') {
           <input
             type="url"
             id="url-input"
-            placeholder="https://www.instructables.com/..."
+            placeholder="https://www.wikihow.com/..."
             class="input flex-1"
             required
           />
@@ -113,9 +115,25 @@ if (Astro.request.method === 'POST') {
             </span>
           </button>
         </div>
-        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-          Try extracting from <a href="https://www.instructables.com/" target="_blank" class="text-amber-600 hover:underline">Instructables</a> or similar DIY sites
-        </p>
+        <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+          <p class="text-gray-600 dark:text-gray-400 mb-2">
+            Paste the URL of any webpage containing a DIY project or tutorial. Refyne will automatically extract the materials, tools, and step-by-step instructions.
+          </p>
+          <p class="text-gray-500 dark:text-gray-500">
+            Try tutorials from{' '}
+            <a href="https://www.wikihow.com/Category:DIY" target="_blank" rel="noopener" class="text-amber-600 hover:underline">
+              WikiHow DIY
+            </a>
+            ,{' '}
+            <a href="https://www.instructables.com/" target="_blank" rel="noopener" class="text-amber-600 hover:underline">
+              Instructables
+            </a>
+            , or{' '}
+            <a href="https://demo.refyne.uk/tutorials" target="_blank" rel="noopener" class="text-amber-600 hover:underline">
+              demo.refyne.uk
+            </a>
+          </p>
+        </div>
       </div>
     </div>
 

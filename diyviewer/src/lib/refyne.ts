@@ -41,6 +41,8 @@ export interface ExtractedTutorial {
   title: string;
   overview: string;
   image_url?: string;
+  author?: string;
+  author_url?: string;
   difficulty?: string;
   estimated_time?: string;
   glossary: GlossaryTerm[];
@@ -93,6 +95,14 @@ fields:
       URL of the main project/tutorial image (the hero/featured image).
       Extract from markdown format ![alt](URL) - return just the URL portion.
       Look for the first prominent image, typically from content.instructables.com or similar.
+
+  - name: author
+    type: string
+    description: Name of the tutorial author or content creator
+
+  - name: author_url
+    type: string
+    description: URL to the author's profile page or website (if available)
 
   - name: difficulty
     type: string
@@ -275,6 +285,8 @@ export async function extractTutorial(
           title: extracted.title || 'Untitled Tutorial',
           overview: extracted.overview || '',
           image_url: extracted.image_url,
+          author: extracted.author,
+          author_url: extracted.author_url,
           difficulty: extracted.difficulty,
           estimated_time: extracted.estimated_time,
           glossary: (extracted.glossary || []).map((term: any) => ({

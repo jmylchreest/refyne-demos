@@ -11,6 +11,8 @@ export interface Tutorial {
   title: string;
   overview: string | null;
   image_url: string | null;
+  author: string | null;
+  author_url: string | null;
   difficulty: string | null;
   estimated_time: string | null;
   source_url: string | null;
@@ -179,6 +181,8 @@ export interface AddTutorialInput {
   title: string;
   overview: string | null;
   image_url: string | null;
+  author: string | null;
+  author_url: string | null;
   difficulty: string | null;
   estimated_time: string | null;
   source_url: string | null;
@@ -226,14 +230,16 @@ export async function addTutorial(
   // Insert tutorial
   await db
     .prepare(
-      `INSERT INTO tutorials (id, title, overview, image_url, difficulty, estimated_time, source_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO tutorials (id, title, overview, image_url, author, author_url, difficulty, estimated_time, source_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       tutorialId,
       tutorial.title,
       tutorial.overview,
       tutorial.image_url,
+      tutorial.author,
+      tutorial.author_url,
       tutorial.difficulty,
       tutorial.estimated_time,
       tutorial.source_url

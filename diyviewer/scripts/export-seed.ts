@@ -34,8 +34,11 @@ function runD1Query(sql: string, remote: boolean): any[] {
 }
 
 function generateTutorialSeed(tutorialId: string, remote: boolean): string {
+  // Escape tutorialId for safe SQL interpolation
+  const safeId = escapeSQL(tutorialId);
+
   // Fetch tutorial
-  const tutorials = runD1Query(`SELECT * FROM tutorials WHERE id = '${tutorialId}'`, remote);
+  const tutorials = runD1Query(`SELECT * FROM tutorials WHERE id = ${safeId}`, remote);
   if (tutorials.length === 0) {
     console.error(`Tutorial not found: ${tutorialId}`);
     process.exit(1);
@@ -44,25 +47,25 @@ function generateTutorialSeed(tutorialId: string, remote: boolean): string {
 
   // Fetch glossary
   const glossary = runD1Query(
-    `SELECT * FROM glossary WHERE tutorial_id = '${tutorialId}' ORDER BY sort_order`,
+    `SELECT * FROM glossary WHERE tutorial_id = ${safeId} ORDER BY sort_order`,
     remote
   );
 
   // Fetch materials
   const materials = runD1Query(
-    `SELECT * FROM materials WHERE tutorial_id = '${tutorialId}' ORDER BY sort_order`,
+    `SELECT * FROM materials WHERE tutorial_id = ${safeId} ORDER BY sort_order`,
     remote
   );
 
   // Fetch tools
   const tools = runD1Query(
-    `SELECT * FROM tools WHERE tutorial_id = '${tutorialId}' ORDER BY sort_order`,
+    `SELECT * FROM tools WHERE tutorial_id = ${safeId} ORDER BY sort_order`,
     remote
   );
 
   // Fetch steps
   const steps = runD1Query(
-    `SELECT * FROM steps WHERE tutorial_id = '${tutorialId}' ORDER BY step_number`,
+    `SELECT * FROM steps WHERE tutorial_id = ${safeId} ORDER BY step_number`,
     remote
   );
 

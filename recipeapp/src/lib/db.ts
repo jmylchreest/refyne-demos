@@ -5,6 +5,8 @@ export interface Recipe {
   title: string;
   description: string | null;
   image_url: string | null;
+  author: string | null;
+  author_url: string | null;
   prep_time: string | null;
   cook_time: string | null;
   total_time: string | null;
@@ -28,6 +30,7 @@ export interface Instruction {
   recipe_id: string;
   step_number: number;
   instruction: string;
+  image_urls?: string[];
 }
 
 export interface ShoppingListItem {
@@ -72,15 +75,21 @@ export async function getRecipeById(db: D1Database, id: string): Promise<RecipeW
     .bind(id)
     .all<Ingredient>();
 
-  const { results: instructions } = await db
+  const { results: rawInstructions } = await db
     .prepare('SELECT * FROM instructions WHERE recipe_id = ? ORDER BY step_number')
     .bind(id)
-    .all<Instruction>();
+    .all<Instruction & { image_urls: string | null }>();
+
+  // Parse image_urls JSON for each instruction
+  const instructions = (rawInstructions || []).map(inst => ({
+    ...inst,
+    image_urls: inst.image_urls ? JSON.parse(inst.image_urls) : [],
+  }));
 
   return {
     ...recipe,
     ingredients: ingredients || [],
-    instructions: instructions || [],
+    instructions,
   };
 }
 
@@ -96,14 +105,16 @@ export async function addRecipe(
   // Insert recipe
   await db
     .prepare(
-      `INSERT INTO recipes (id, title, description, image_url, prep_time, cook_time, total_time, servings, source_url)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO recipes (id, title, description, image_url, author, author_url, prep_time, cook_time, total_time, servings, source_url)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     .bind(
       recipeId,
       recipe.title,
       recipe.description,
       recipe.image_url,
+      recipe.author,
+      recipe.author_url,
       recipe.prep_time,
       recipe.cook_time,
       recipe.total_time,
@@ -125,12 +136,19 @@ export async function addRecipe(
 
   // Insert instructions
   for (const inst of instructions) {
+    const imageUrls = (inst as any).image_urls;
     await db
       .prepare(
-        `INSERT INTO instructions (id, recipe_id, step_number, instruction)
-         VALUES (?, ?, ?, ?)`
+        `INSERT INTO instructions (id, recipe_id, step_number, instruction, image_urls)
+         VALUES (?, ?, ?, ?, ?)`
       )
-      .bind(generateId(), recipeId, inst.step_number, inst.instruction)
+      .bind(
+        generateId(),
+        recipeId,
+        inst.step_number,
+        inst.instruction,
+        imageUrls && imageUrls.length > 0 ? JSON.stringify(imageUrls) : null
+      )
       .run();
   }
 

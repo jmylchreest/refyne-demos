@@ -7,6 +7,8 @@ CREATE TABLE IF NOT EXISTS recipes (
   title TEXT NOT NULL,
   description TEXT,
   image_url TEXT,
+  author TEXT,
+  author_url TEXT,
   prep_time TEXT,
   cook_time TEXT,
   total_time TEXT,
@@ -33,6 +35,7 @@ CREATE TABLE IF NOT EXISTS instructions (
   recipe_id TEXT NOT NULL,
   step_number INTEGER NOT NULL,
   instruction TEXT NOT NULL,
+  image_urls TEXT,
   FOREIGN KEY (recipe_id) REFERENCES recipes(id) ON DELETE CASCADE
 );
 

@@ -1,6 +1,8 @@
 /// <reference path="../.astro/types.d.ts" />
 /// <reference types="astro/client" />
 
+declare const __GIT_COMMIT__: string;
+
 type D1Database = import('@cloudflare/workers-types').D1Database;
 
 interface Env {

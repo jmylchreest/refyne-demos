@@ -41,6 +41,8 @@ if (Astro.request.method === 'POST') {
           title: recipeData.title,
           description: recipeData.description || null,
           image_url: recipeData.image_url || null,
+          author: recipeData.author || null,
+          author_url: recipeData.author_url || null,
           prep_time: recipeData.prep_time || null,
           cook_time: recipeData.cook_time || null,
           total_time: recipeData.total_time || null,
@@ -57,6 +59,7 @@ if (Astro.request.method === 'POST') {
         (recipeData.instructions || []).map((inst: any) => ({
           step_number: inst.step,
           instruction: inst.text,
+          image_urls: inst.image_urls || [],
         }))
       );
 
@@ -97,7 +100,7 @@ if (Astro.request.method === 'POST') {
           <input
             type="url"
             name="url"
-            placeholder="https://demo.refyne.uk/recipes/1"
+            placeholder="https://publicdomainrecipes.com/recipe/..."
             class="input flex-1"
             required
           />
@@ -109,9 +112,21 @@ if (Astro.request.method === 'POST') {
             </span>
           </button>
         </div>
-        <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
-          Try extracting from <a href="https://demo.refyne.uk/recipes" target="_blank" class="text-indigo-600 hover:underline">demo.refyne.uk/recipes</a>
-        </p>
+        <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+          <p class="text-gray-600 dark:text-gray-400 mb-2">
+            Paste the URL of any webpage containing a recipe. Refyne will automatically extract the ingredients, instructions, and cooking times.
+          </p>
+          <p class="text-gray-500 dark:text-gray-500">
+            Try recipes from{' '}
+            <a href="https://publicdomainrecipes.com" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">
+              Public Domain Recipes
+            </a>
+            {' '}(copyright-free) or{' '}
+            <a href="https://demo.refyne.uk/recipes" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">
+              demo.refyne.uk
+            </a>
+          </p>
+        </div>
       </form>
     ) : (
       <form method="POST" class="space-y-6">
