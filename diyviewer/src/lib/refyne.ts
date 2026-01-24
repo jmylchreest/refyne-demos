@@ -58,6 +58,7 @@ export interface RefyneResponse {
   error?: string;
 }
 
+//#region tutorial-schema
 // DIY Tutorial extraction schema for Refyne
 const TUTORIAL_SCHEMA = `
 name: DIYTutorial
@@ -243,6 +244,7 @@ fields:
     items:
       type: string
 `;
+//#endregion tutorial-schema
 
 // Extraction timeout: 3 minutes for complex tutorials
 const EXTRACTION_TIMEOUT_MS = 180000;
@@ -361,6 +363,7 @@ export interface CrawlJobStatusResponse {
   error?: string;
 }
 
+//#region start-extraction
 /**
  * Start an async extraction (crawl) job.
  * Returns a job_id that can be polled for status.
@@ -405,7 +408,9 @@ export async function startExtraction(
     };
   }
 }
+//#endregion start-extraction
 
+//#region get-job-status
 /**
  * Get the status of an async extraction job.
  * When complete, returns the extracted tutorial data.
@@ -470,6 +475,7 @@ export async function getJobStatus(
     };
   }
 }
+//#endregion get-job-status
 
 /**
  * Transform raw extraction data to ExtractedTutorial format.

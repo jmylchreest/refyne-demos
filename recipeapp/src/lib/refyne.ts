@@ -39,6 +39,7 @@ export interface RefyneResponse {
   error?: string;
 }
 
+//#region recipe-schema
 // Recipe extraction schema for Refyne
 const RECIPE_SCHEMA = `
 name: Recipe
@@ -153,7 +154,9 @@ fields:
     items:
       type: string
 `;
+//#endregion recipe-schema
 
+//#region extract-recipe
 /**
  * Create a Refyne SDK client with the given configuration.
  */
@@ -227,5 +230,6 @@ export async function extractRecipe(
     };
   }
 }
+//#endregion extract-recipe
 
 export { RECIPE_SCHEMA };
