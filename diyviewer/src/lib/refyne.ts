@@ -1,4 +1,5 @@
 // Refyne API integration for DIY tutorial extraction
+import { Refyne } from '@refyne/sdk';
 
 export interface GlossaryTerm {
   term: string;
@@ -53,8 +54,18 @@ export interface RefyneResponse {
   error?: string;
 }
 
+// Job status response from async extraction
+export interface JobStatusResponse {
+  success: boolean;
+  jobId?: string;
+  status?: 'pending' | 'running' | 'completed' | 'failed';
+  data?: ExtractedTutorial;
+  error?: string;
+  pageCount?: number;
+}
+
 // DIY Tutorial extraction schema for Refyne
-const TUTORIAL_SCHEMA = `
+export const TUTORIAL_SCHEMA = `
 name: DIYTutorial
 description: |
   Extracts tutorial information from DIY sites like Instructables.
@@ -224,6 +235,176 @@ fields:
       type: string
 `;
 
+/**
+ * Create a configured Refyne SDK client.
+ */
+export function createRefyneClient(apiUrl: string, apiKey: string, referer?: string): Refyne {
+  return new Refyne({
+    apiKey,
+    baseUrl: apiUrl,
+    referer: referer || 'https://diyviewer-demo.refyne.uk',
+  });
+}
+
+/**
+ * Start an async extraction job. Returns immediately with a job ID.
+ * Use getJobStatus to poll for completion.
+ */
+export async function startExtraction(
+  url: string,
+  apiUrl: string,
+  apiKey: string,
+  referer?: string
+): Promise<JobStatusResponse> {
+  try {
+    const client = createRefyneClient(apiUrl, apiKey, referer);
+
+    // Use crawl endpoint - returns immediately with job_id
+    // Single page extraction using crawl for async support
+    const result = await client.crawl({
+      url,
+      schema: TUTORIAL_SCHEMA,
+      options: {
+        max_pages: 1,
+        max_urls: 1,
+        extract_from_seeds: true,
+      },
+    });
+
+    // If job completed immediately (fast extraction), we get results directly
+    if (result.status === 'completed' && result.data) {
+      return {
+        success: true,
+        jobId: result.job_id,
+        status: 'completed',
+        data: transformExtractedData(result.data),
+      };
+    }
+
+    // Job still running, return job_id for polling
+    return {
+      success: true,
+      jobId: result.job_id,
+      status: (result.status as JobStatusResponse['status']) || 'running',
+    };
+  } catch (error) {
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to start extraction',
+    };
+  }
+}
+
+/**
+ * Poll for job status and results.
+ */
+export async function getJobStatus(
+  jobId: string,
+  apiUrl: string,
+  apiKey: string,
+  referer?: string
+): Promise<JobStatusResponse> {
+  try {
+    const client = createRefyneClient(apiUrl, apiKey, referer);
+
+    // Get job results with merge=true to combine multi-page results
+    const data = await client.jobs.getResults(jobId, { merge: true });
+
+    // Check job status
+    if (data.status === 'failed') {
+      return {
+        success: false,
+        jobId,
+        status: 'failed',
+        error: data.error_message || 'Extraction failed',
+      };
+    }
+
+    if (data.status === 'completed') {
+      // Results are in data.merged (when merge=true) or data.results[0]
+      const extracted = data.merged || (data.results && data.results[0]) || {};
+      return {
+        success: true,
+        jobId,
+        status: 'completed',
+        data: transformExtractedData(extracted),
+        pageCount: data.page_count,
+      };
+    }
+
+    // Still running
+    return {
+      success: true,
+      jobId,
+      status: (data.status as JobStatusResponse['status']) || 'running',
+      pageCount: data.page_count,
+    };
+  } catch (error: any) {
+    // Handle 404 (job not found or results not ready yet)
+    if (error?.status === 404 || error?.statusCode === 404) {
+      return {
+        success: true,
+        jobId,
+        status: 'running',
+      };
+    }
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : 'Failed to get job status',
+    };
+  }
+}
+
+/**
+ * Transform raw extracted data into our ExtractedTutorial interface.
+ */
+function transformExtractedData(extracted: any): ExtractedTutorial {
+  return {
+    title: extracted.title || 'Untitled Tutorial',
+    overview: extracted.overview || '',
+    image_url: extracted.image_url,
+    difficulty: extracted.difficulty,
+    estimated_time: extracted.estimated_time,
+    glossary: (extracted.glossary || []).map((term: any) => ({
+      term: term.term || '',
+      definition: term.definition || '',
+      context: term.context,
+    })),
+    materials: (extracted.materials || []).map((mat: any) => ({
+      name: mat.name || '',
+      quantity: mat.quantity,
+      notes: mat.notes,
+      measurement: mat.measurement ? {
+        original: mat.measurement.original || '',
+        metric: mat.measurement.metric || '',
+        imperial: mat.measurement.imperial || '',
+      } : undefined,
+    })),
+    tools: (extracted.tools || []).map((tool: any) => ({
+      name: tool.name || '',
+      notes: tool.notes,
+      required: tool.required !== false,
+    })),
+    steps: (extracted.steps || []).map((step: any, idx: number) => ({
+      step_number: step.step_number || idx + 1,
+      title: step.title || `Step ${idx + 1}`,
+      instructions: step.instructions || '',
+      tips: step.tips,
+      image_urls: step.image_urls || [],
+      measurements: (step.measurements || []).map((m: any) => ({
+        original: m.original || '',
+        metric: m.metric || '',
+        imperial: m.imperial || '',
+      })),
+    })),
+    tags: extracted.tags,
+  };
+}
+
+/**
+ * Legacy synchronous extraction - may timeout on large pages.
+ * Consider using startExtraction + getJobStatus for better reliability.
+ */
 export async function extractTutorial(
   url: string,
   apiUrl: string,
@@ -231,81 +412,19 @@ export async function extractTutorial(
   referer?: string
 ): Promise<RefyneResponse> {
   try {
-    const response = await fetch(`${apiUrl}/api/v1/extract`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${apiKey}`,
-        'Referer': referer || 'https://diyviewer-demo.refyne.uk',
-      },
-      body: JSON.stringify({
-        url,
-        schema: TUTORIAL_SCHEMA,
-      }),
+    const client = createRefyneClient(apiUrl, apiKey, referer);
+
+    const result = await client.extract({
+      url,
+      schema: TUTORIAL_SCHEMA,
     });
 
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}));
-      return {
-        success: false,
-        error: errorData.error || `API error: ${response.status}`,
-      };
-    }
-
-    const data = await response.json();
-
-    if (data.error) {
-      return {
-        success: false,
-        error: data.error,
-      };
-    }
-
     // Extract the tutorial data from the response
-    const extracted = data.data || data;
+    const extracted = result.data || result;
 
     return {
       success: true,
-      data: {
-        title: extracted.title || 'Untitled Tutorial',
-        overview: extracted.overview || '',
-        image_url: extracted.image_url,
-        difficulty: extracted.difficulty,
-        estimated_time: extracted.estimated_time,
-        glossary: (extracted.glossary || []).map((term: any) => ({
-          term: term.term || '',
-          definition: term.definition || '',
-          context: term.context,
-        })),
-        materials: (extracted.materials || []).map((mat: any) => ({
-          name: mat.name || '',
-          quantity: mat.quantity,
-          notes: mat.notes,
-          measurement: mat.measurement ? {
-            original: mat.measurement.original || '',
-            metric: mat.measurement.metric || '',
-            imperial: mat.measurement.imperial || '',
-          } : undefined,
-        })),
-        tools: (extracted.tools || []).map((tool: any) => ({
-          name: tool.name || '',
-          notes: tool.notes,
-          required: tool.required !== false,
-        })),
-        steps: (extracted.steps || []).map((step: any, idx: number) => ({
-          step_number: step.step_number || idx + 1,
-          title: step.title || `Step ${idx + 1}`,
-          instructions: step.instructions || '',
-          tips: step.tips,
-          image_urls: step.image_urls || [],
-          measurements: (step.measurements || []).map((m: any) => ({
-            original: m.original || '',
-            metric: m.metric || '',
-            imperial: m.imperial || '',
-          })),
-        })),
-        tags: extracted.tags,
-      },
+      data: transformExtractedData(extracted),
     };
   } catch (error) {
     return {

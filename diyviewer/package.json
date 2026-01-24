@@ -18,7 +18,8 @@
   },
   "dependencies": {
     "astro": "^5.16.13",
-    "@astrojs/cloudflare": "^12.5.1"
+    "@astrojs/cloudflare": "^12.5.1",
+    "@refyne/sdk": "file:../../../refyne-sdk-ts"
   },
   "devDependencies": {
     "@tailwindcss/vite": "^4.1.18",

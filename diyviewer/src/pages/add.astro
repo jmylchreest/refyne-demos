@@ -1,35 +1,15 @@
 ---
 import Layout from '../layouts/Layout.astro';
 import { addTutorial } from '../lib/db';
-import { extractTutorial } from '../lib/refyne';
 
 const db = Astro.locals.runtime.env.DB;
-const env = Astro.locals.runtime.env;
 
 let error: string | null = null;
-let extractedData: any = null;
 
+// Only handle save action server-side - extraction is now client-side async
 if (Astro.request.method === 'POST') {
   const formData = await Astro.request.formData();
   const action = formData.get('action');
-
-  if (action === 'extract') {
-    const url = formData.get('url') as string;
-
-    if (!url) {
-      error = 'Please enter a URL';
-    } else {
-      // Use current site URL as referer (works for both local dev and production)
-      const referer = Astro.site?.toString() || Astro.url.origin;
-      const result = await extractTutorial(url, env.REFYNE_API_URL, env.DEMO_API_KEY, referer);
-
-      if (!result.success) {
-        error = result.error || 'Failed to extract tutorial';
-      } else {
-        extractedData = { ...result.data, source_url: url };
-      }
-    }
-  }
 
   if (action === 'save') {
     const tutorialData = JSON.parse(formData.get('tutorial') as string);
@@ -90,6 +70,16 @@ if (Astro.request.method === 'POST') {
       Enter a URL to extract DIY tutorial details automatically using Refyne
     </p>
 
+    <!-- Error display -->
+    <div id="error-container" class="hidden mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
+      <div class="flex items-center gap-2">
+        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+        </svg>
+        <span id="error-message"></span>
+      </div>
+    </div>
+
     {error && (
       <div class="mb-6 p-4 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg text-red-700 dark:text-red-400">
         <div class="flex items-center gap-2">
@@ -101,179 +91,131 @@ if (Astro.request.method === 'POST') {
       </div>
     )}
 
-    {!extractedData ? (
-      <form method="POST" class="card p-6">
-        <input type="hidden" name="action" value="extract" />
-
+    <!-- URL Input Form (shown initially) -->
+    <div id="url-form-container">
+      <div class="card p-6">
         <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
           Tutorial URL
         </label>
         <div class="flex gap-3">
           <input
             type="url"
-            name="url"
+            id="url-input"
             placeholder="https://www.instructables.com/..."
             class="input flex-1"
             required
           />
-          <button type="submit" class="btn btn-primary whitespace-nowrap" id="extract-btn">
+          <button type="button" id="extract-btn" class="btn btn-primary whitespace-nowrap">
             <span class="btn-text">Extract Tutorial</span>
             <span class="btn-loading hidden">
               <span class="spinner mr-2"></span>
-              Extracting...
+              Starting...
             </span>
           </button>
         </div>
         <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
           Try extracting from <a href="https://www.instructables.com/" target="_blank" class="text-amber-600 hover:underline">Instructables</a> or similar DIY sites
         </p>
-      </form>
-    ) : (
-      <form method="POST" class="space-y-6">
-        <input type="hidden" name="action" value="save" />
-        <input type="hidden" name="tutorial" value={JSON.stringify(extractedData)} />
+      </div>
+    </div>
 
-        <div class="card p-6">
-          <div class="flex items-center justify-between mb-4">
-            <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Extracted Tutorial</h2>
-            <span class="badge badge-success">Ready to save</span>
-          </div>
-
-          {extractedData.image_url && (
-            <div class="aspect-video rounded-lg overflow-hidden mb-4">
-              <img src={extractedData.image_url} alt={extractedData.title} class="w-full h-full object-cover" />
-            </div>
-          )}
-
-          <h3 class="text-2xl font-bold text-gray-900 dark:text-white">{extractedData.title}</h3>
-
-          {extractedData.overview && (
-            <p class="mt-2 text-gray-600 dark:text-gray-400">{extractedData.overview}</p>
-          )}
-
-          <div class="mt-4 flex flex-wrap gap-4 text-sm text-gray-500">
-            {extractedData.difficulty && (
-              <span class="flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                </svg>
-                {extractedData.difficulty}
-              </span>
-            )}
-            {extractedData.estimated_time && (
-              <span class="flex items-center gap-1">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                {extractedData.estimated_time}
-              </span>
-            )}
-          </div>
-
-          {/* Glossary Section */}
-          {extractedData.glossary?.length > 0 && (
-            <div class="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
-              <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
-                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-                </svg>
-                Glossary ({extractedData.glossary.length} terms)
-              </h4>
-              <div class="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                {extractedData.glossary.slice(0, 4).map((term: any) => (
-                  <div><strong>{term.term}</strong>: {term.definition.length > 60 ? term.definition.slice(0, 60) + '...' : term.definition}</div>
-                ))}
-                {extractedData.glossary.length > 4 && (
-                  <div class="text-blue-600 dark:text-blue-400">+ {extractedData.glossary.length - 4} more terms...</div>
-                )}
-              </div>
-            </div>
-          )}
-
-          <div class="mt-6 grid md:grid-cols-2 gap-6">
-            {/* Materials Section */}
-            <div>
-              <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
-                </svg>
-                Materials ({extractedData.materials?.length || 0})
-              </h4>
-              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                {extractedData.materials?.slice(0, 5).map((mat: any) => (
-                  <li class="flex items-start gap-1">
-                    <span class="text-green-600">•</span>
-                    <span>
-                      {mat.quantity ? `${mat.quantity} ` : ''}{mat.name}
-                      {mat.measurement && (
-                        <span class="text-xs text-gray-400 ml-1" title={`${mat.measurement.metric} / ${mat.measurement.imperial}`}>
-                          [{mat.measurement.original}]
-                        </span>
-                      )}
-                    </span>
-                  </li>
-                ))}
-                {extractedData.materials?.length > 5 && (
-                  <li class="text-gray-400">+ {extractedData.materials.length - 5} more...</li>
-                )}
-              </ul>
-            </div>
-
-            {/* Tools Section */}
-            <div>
-              <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
-                <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                </svg>
-                Tools ({extractedData.tools?.length || 0})
-              </h4>
-              <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                {extractedData.tools?.slice(0, 5).map((tool: any) => (
-                  <li class="flex items-start gap-1">
-                    <span class={tool.required ? "text-orange-600" : "text-gray-400"}>
-                      {tool.required ? '•' : '○'}
-                    </span>
-                    <span>
-                      {tool.name}
-                      {!tool.required && <span class="text-xs text-gray-400 ml-1">(optional)</span>}
-                    </span>
-                  </li>
-                ))}
-                {extractedData.tools?.length > 5 && (
-                  <li class="text-gray-400">+ {extractedData.tools.length - 5} more...</li>
-                )}
-              </ul>
-            </div>
-          </div>
-
-          {/* Steps Section */}
-          <div class="mt-6">
-            <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
-              Steps ({extractedData.steps?.length || 0})
-            </h4>
-            <ul class="text-sm text-gray-600 dark:text-gray-400 space-y-1">
-              {extractedData.steps?.slice(0, 4).map((step: any) => (
-                <li class="truncate">{step.step_number}. {step.title}</li>
-              ))}
-              {extractedData.steps?.length > 4 && (
-                <li class="text-gray-400">+ {extractedData.steps.length - 4} more steps...</li>
-              )}
-            </ul>
+    <!-- Extraction Progress (shown during extraction) -->
+    <div id="progress-container" class="hidden">
+      <div class="card p-6">
+        <div class="flex items-center gap-4">
+          <div class="spinner-large"></div>
+          <div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Extracting Tutorial</h3>
+            <p id="progress-status" class="text-sm text-gray-600 dark:text-gray-400">Starting extraction...</p>
+            <p id="progress-time" class="text-xs text-gray-400 mt-1">Elapsed: 0s</p>
           </div>
         </div>
+        <div class="mt-4">
+          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+            <div id="progress-bar" class="h-full bg-amber-500 transition-all duration-300" style="width: 10%"></div>
+          </div>
+        </div>
+        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
+          Large tutorials may take up to 2 minutes to extract. Please wait...
+        </p>
+      </div>
+    </div>
 
-        <div class="flex gap-3">
-          <button type="submit" class="btn btn-primary flex-1">
-            <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+    <!-- Extracted Data Form (shown after successful extraction) -->
+    <form method="POST" id="save-form" class="hidden space-y-6">
+      <input type="hidden" name="action" value="save" />
+      <input type="hidden" name="tutorial" id="tutorial-data" value="" />
+
+      <div class="card p-6">
+        <div class="flex items-center justify-between mb-4">
+          <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Extracted Tutorial</h2>
+          <span class="badge badge-success">Ready to save</span>
+        </div>
+
+        <div id="preview-image" class="aspect-video rounded-lg overflow-hidden mb-4 hidden">
+          <img id="preview-image-src" src="" alt="" class="w-full h-full object-cover" />
+        </div>
+
+        <h3 id="preview-title" class="text-2xl font-bold text-gray-900 dark:text-white"></h3>
+        <p id="preview-overview" class="mt-2 text-gray-600 dark:text-gray-400"></p>
+
+        <div id="preview-meta" class="mt-4 flex flex-wrap gap-4 text-sm text-gray-500"></div>
+
+        <!-- Glossary Preview -->
+        <div id="preview-glossary" class="hidden mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 rounded-lg">
+          <h4 class="font-semibold text-blue-900 dark:text-blue-300 mb-2 flex items-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
             </svg>
-            Save Project
-          </button>
-          <a href="/add" class="btn btn-secondary">Try Another URL</a>
+            <span id="glossary-count">Glossary</span>
+          </h4>
+          <div id="glossary-items" class="text-sm text-blue-800 dark:text-blue-200 space-y-1"></div>
         </div>
-      </form>
-    )}
+
+        <div class="mt-6 grid md:grid-cols-2 gap-6">
+          <!-- Materials Preview -->
+          <div id="preview-materials">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <svg class="w-4 h-4 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4" />
+              </svg>
+              <span id="materials-count">Materials</span>
+            </h4>
+            <ul id="materials-items" class="text-sm text-gray-600 dark:text-gray-400 space-y-1"></ul>
+          </div>
+
+          <!-- Tools Preview -->
+          <div id="preview-tools">
+            <h4 class="font-semibold text-gray-900 dark:text-white mb-2 flex items-center gap-2">
+              <svg class="w-4 h-4 text-orange-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+              </svg>
+              <span id="tools-count">Tools</span>
+            </h4>
+            <ul id="tools-items" class="text-sm text-gray-600 dark:text-gray-400 space-y-1"></ul>
+          </div>
+        </div>
+
+        <!-- Steps Preview -->
+        <div class="mt-6">
+          <h4 class="font-semibold text-gray-900 dark:text-white mb-2">
+            <span id="steps-count">Steps</span>
+          </h4>
+          <ul id="steps-items" class="text-sm text-gray-600 dark:text-gray-400 space-y-1"></ul>
+        </div>
+      </div>
+
+      <div class="flex gap-3">
+        <button type="submit" class="btn btn-primary flex-1">
+          <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
+          </svg>
+          Save Project
+        </button>
+        <button type="button" id="try-another-btn" class="btn btn-secondary">Try Another URL</button>
+      </div>
+    </form>
 
     <div class="mt-8 p-4 bg-amber-50 dark:bg-amber-900/20 rounded-lg">
       <h3 class="font-semibold text-amber-900 dark:text-amber-300 mb-2">How it works</h3>
@@ -285,16 +227,326 @@ if (Astro.request.method === 'POST') {
   </div>
 </Layout>
 
-<script>
-  // Show loading state on extract
-  const form = document.querySelector('form');
-  const btn = document.getElementById('extract-btn');
+<style>
+  .spinner-large {
+    width: 48px;
+    height: 48px;
+    border: 4px solid #e5e7eb;
+    border-top-color: #f59e0b;
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+  }
 
-  form?.addEventListener('submit', () => {
-    if (btn) {
-      btn.querySelector('.btn-text')?.classList.add('hidden');
-      btn.querySelector('.btn-loading')?.classList.remove('hidden');
-      btn.setAttribute('disabled', 'true');
+  @keyframes spin {
+    to { transform: rotate(360deg); }
+  }
+</style>
+
+<script>
+  const urlFormContainer = document.getElementById('url-form-container');
+  const progressContainer = document.getElementById('progress-container');
+  const saveForm = document.getElementById('save-form');
+  const errorContainer = document.getElementById('error-container');
+  const errorMessage = document.getElementById('error-message');
+
+  const urlInput = document.getElementById('url-input') as HTMLInputElement;
+  const extractBtn = document.getElementById('extract-btn');
+  const tryAnotherBtn = document.getElementById('try-another-btn');
+
+  const progressStatus = document.getElementById('progress-status');
+  const progressTime = document.getElementById('progress-time');
+  const progressBar = document.getElementById('progress-bar');
+
+  let pollInterval: ReturnType<typeof setInterval> | null = null;
+  let startTime: number = 0;
+  let elapsedInterval: ReturnType<typeof setInterval> | null = null;
+
+  function showError(msg: string) {
+    errorMessage!.textContent = msg;
+    errorContainer!.classList.remove('hidden');
+  }
+
+  function hideError() {
+    errorContainer!.classList.add('hidden');
+  }
+
+  function showUrlForm() {
+    urlFormContainer!.classList.remove('hidden');
+    progressContainer!.classList.add('hidden');
+    saveForm!.classList.add('hidden');
+    resetExtractBtn();
+  }
+
+  function showProgress() {
+    urlFormContainer!.classList.add('hidden');
+    progressContainer!.classList.remove('hidden');
+    saveForm!.classList.add('hidden');
+    hideError();
+  }
+
+  function showSaveForm(data: any) {
+    urlFormContainer!.classList.add('hidden');
+    progressContainer!.classList.add('hidden');
+    saveForm!.classList.remove('hidden');
+    populatePreview(data);
+  }
+
+  function resetExtractBtn() {
+    if (extractBtn) {
+      extractBtn.querySelector('.btn-text')?.classList.remove('hidden');
+      extractBtn.querySelector('.btn-loading')?.classList.add('hidden');
+      extractBtn.removeAttribute('disabled');
     }
+  }
+
+  function setExtractBtnLoading() {
+    if (extractBtn) {
+      extractBtn.querySelector('.btn-text')?.classList.add('hidden');
+      extractBtn.querySelector('.btn-loading')?.classList.remove('hidden');
+      extractBtn.setAttribute('disabled', 'true');
+    }
+  }
+
+  function updateElapsed() {
+    const elapsed = Math.floor((Date.now() - startTime) / 1000);
+    progressTime!.textContent = `Elapsed: ${elapsed}s`;
+    // Slowly increase progress bar (never reaches 100% until complete)
+    const progress = Math.min(10 + (elapsed * 0.5), 90);
+    progressBar!.style.width = `${progress}%`;
+  }
+
+  function startElapsedTimer() {
+    startTime = Date.now();
+    elapsedInterval = setInterval(updateElapsed, 1000);
+  }
+
+  function stopElapsedTimer() {
+    if (elapsedInterval) {
+      clearInterval(elapsedInterval);
+      elapsedInterval = null;
+    }
+  }
+
+  function populatePreview(data: any) {
+    // Set hidden form data
+    const tutorialInput = document.getElementById('tutorial-data') as HTMLInputElement;
+    tutorialInput.value = JSON.stringify(data);
+
+    // Title & Overview
+    document.getElementById('preview-title')!.textContent = data.title || 'Untitled';
+    document.getElementById('preview-overview')!.textContent = data.overview || '';
+
+    // Image
+    const imageContainer = document.getElementById('preview-image');
+    const imageSrc = document.getElementById('preview-image-src') as HTMLImageElement;
+    if (data.image_url) {
+      imageSrc.src = data.image_url;
+      imageSrc.alt = data.title || '';
+      imageContainer!.classList.remove('hidden');
+    } else {
+      imageContainer!.classList.add('hidden');
+    }
+
+    // Meta (difficulty, time)
+    const metaContainer = document.getElementById('preview-meta')!;
+    metaContainer.innerHTML = '';
+    if (data.difficulty) {
+      metaContainer.innerHTML += `
+        <span class="flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+          </svg>
+          ${data.difficulty}
+        </span>
+      `;
+    }
+    if (data.estimated_time) {
+      metaContainer.innerHTML += `
+        <span class="flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          ${data.estimated_time}
+        </span>
+      `;
+    }
+
+    // Glossary
+    const glossaryContainer = document.getElementById('preview-glossary')!;
+    const glossaryItems = document.getElementById('glossary-items')!;
+    if (data.glossary?.length > 0) {
+      document.getElementById('glossary-count')!.textContent = `Glossary (${data.glossary.length} terms)`;
+      glossaryItems.innerHTML = data.glossary.slice(0, 4).map((term: any) =>
+        `<div><strong>${term.term}</strong>: ${term.definition.length > 60 ? term.definition.slice(0, 60) + '...' : term.definition}</div>`
+      ).join('');
+      if (data.glossary.length > 4) {
+        glossaryItems.innerHTML += `<div class="text-blue-600 dark:text-blue-400">+ ${data.glossary.length - 4} more terms...</div>`;
+      }
+      glossaryContainer.classList.remove('hidden');
+    } else {
+      glossaryContainer.classList.add('hidden');
+    }
+
+    // Materials
+    document.getElementById('materials-count')!.textContent = `Materials (${data.materials?.length || 0})`;
+    const materialsItems = document.getElementById('materials-items')!;
+    materialsItems.innerHTML = (data.materials?.slice(0, 5) || []).map((mat: any) => {
+      let text = mat.quantity ? `${mat.quantity} ` : '';
+      text += mat.name;
+      if (mat.measurement) {
+        text += ` <span class="text-xs text-gray-400" title="${mat.measurement.metric} / ${mat.measurement.imperial}">[${mat.measurement.original}]</span>`;
+      }
+      return `<li class="flex items-start gap-1"><span class="text-green-600">&bull;</span><span>${text}</span></li>`;
+    }).join('');
+    if (data.materials?.length > 5) {
+      materialsItems.innerHTML += `<li class="text-gray-400">+ ${data.materials.length - 5} more...</li>`;
+    }
+
+    // Tools
+    document.getElementById('tools-count')!.textContent = `Tools (${data.tools?.length || 0})`;
+    const toolsItems = document.getElementById('tools-items')!;
+    toolsItems.innerHTML = (data.tools?.slice(0, 5) || []).map((tool: any) => {
+      const bullet = tool.required ? '<span class="text-orange-600">&bull;</span>' : '<span class="text-gray-400">&#9675;</span>';
+      const optional = !tool.required ? '<span class="text-xs text-gray-400 ml-1">(optional)</span>' : '';
+      return `<li class="flex items-start gap-1">${bullet}<span>${tool.name}${optional}</span></li>`;
+    }).join('');
+    if (data.tools?.length > 5) {
+      toolsItems.innerHTML += `<li class="text-gray-400">+ ${data.tools.length - 5} more...</li>`;
+    }
+
+    // Steps
+    document.getElementById('steps-count')!.textContent = `Steps (${data.steps?.length || 0})`;
+    const stepsItems = document.getElementById('steps-items')!;
+    stepsItems.innerHTML = (data.steps?.slice(0, 4) || []).map((step: any) =>
+      `<li class="truncate">${step.step_number}. ${step.title}</li>`
+    ).join('');
+    if (data.steps?.length > 4) {
+      stepsItems.innerHTML += `<li class="text-gray-400">+ ${data.steps.length - 4} more steps...</li>`;
+    }
+  }
+
+  async function startExtraction(url: string) {
+    hideError();
+    setExtractBtnLoading();
+    showProgress();
+    progressStatus!.textContent = 'Starting extraction...';
+    progressBar!.style.width = '10%';
+    startElapsedTimer();
+
+    try {
+      // Call our API to start extraction
+      const response = await fetch('/api/extract', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url }),
+      });
+
+      const result = await response.json();
+
+      if (!result.success) {
+        throw new Error(result.error || 'Failed to start extraction');
+      }
+
+      // If completed immediately, show results
+      if (result.status === 'completed' && result.data) {
+        stopElapsedTimer();
+        progressBar!.style.width = '100%';
+        result.data.source_url = url;
+        showSaveForm(result.data);
+        return;
+      }
+
+      // Start polling for results
+      if (result.jobId) {
+        progressStatus!.textContent = 'Extraction in progress...';
+        pollForResults(result.jobId, url);
+      } else {
+        throw new Error('No job ID returned');
+      }
+    } catch (error: any) {
+      stopElapsedTimer();
+      showUrlForm();
+      showError(error.message || 'Failed to start extraction');
+    }
+  }
+
+  async function pollForResults(jobId: string, sourceUrl: string) {
+    const maxAttempts = 120; // 2 minutes max with 1 second interval
+    let attempts = 0;
+
+    pollInterval = setInterval(async () => {
+      attempts++;
+
+      if (attempts > maxAttempts) {
+        clearInterval(pollInterval!);
+        pollInterval = null;
+        stopElapsedTimer();
+        showUrlForm();
+        showError('Extraction timed out. The page may be too large or complex.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/poll/${jobId}`);
+        const result = await response.json();
+
+        if (!result.success && result.status !== 'running') {
+          clearInterval(pollInterval!);
+          pollInterval = null;
+          stopElapsedTimer();
+          showUrlForm();
+          showError(result.error || 'Extraction failed');
+          return;
+        }
+
+        // Update status message
+        if (result.status === 'running') {
+          progressStatus!.textContent = 'Processing page content...';
+        } else if (result.status === 'pending') {
+          progressStatus!.textContent = 'Waiting to start...';
+        }
+
+        // Completed!
+        if (result.status === 'completed' && result.data) {
+          clearInterval(pollInterval!);
+          pollInterval = null;
+          stopElapsedTimer();
+          progressBar!.style.width = '100%';
+          result.data.source_url = sourceUrl;
+          showSaveForm(result.data);
+        }
+      } catch (error: any) {
+        // Network error - keep trying
+        console.error('Poll error:', error);
+      }
+    }, 1000);
+  }
+
+  // Event listeners
+  extractBtn?.addEventListener('click', () => {
+    const url = urlInput?.value?.trim();
+    if (!url) {
+      showError('Please enter a URL');
+      return;
+    }
+    startExtraction(url);
+  });
+
+  // Allow Enter key to submit
+  urlInput?.addEventListener('keypress', (e) => {
+    if (e.key === 'Enter') {
+      extractBtn?.click();
+    }
+  });
+
+  tryAnotherBtn?.addEventListener('click', () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    stopElapsedTimer();
+    urlInput.value = '';
+    showUrlForm();
+    hideError();
   });
 </script>
