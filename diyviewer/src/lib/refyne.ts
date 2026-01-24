@@ -286,10 +286,13 @@ export async function startExtraction(
       jobId: result.job_id,
       status: result.status || 'running',
     };
-  } catch (error) {
+  } catch (error: any) {
+    // Extract detailed error info from SDK errors
+    const errorMessage = error?.message || error?.detail || String(error);
+    const statusCode = error?.status || error?.statusCode;
     return {
       success: false,
-      error: error instanceof Error ? error.message : 'Failed to start extraction',
+      error: statusCode ? `${errorMessage} (${statusCode})` : errorMessage,
     };
   }
 }

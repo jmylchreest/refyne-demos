@@ -15,6 +15,18 @@ export const POST: APIRoute = async ({ request, locals }) => {
       });
     }
 
+    // Validate environment variables
+    if (!env.REFYNE_API_URL || !env.DEMO_API_KEY) {
+      console.error('Missing environment variables:', {
+        hasApiUrl: !!env.REFYNE_API_URL,
+        hasApiKey: !!env.DEMO_API_KEY,
+      });
+      return new Response(JSON.stringify({ error: 'Server configuration error' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' },
+      });
+    }
+
     const referer = request.headers.get('origin') || 'https://diyviewer-demo.refyne.uk';
     const result = await startExtraction(url, env.REFYNE_API_URL, env.DEMO_API_KEY, referer);
 
