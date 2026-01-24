@@ -32,11 +32,11 @@ const uncheckedCount = items.filter(i => !i.checked).length;
 const checkedCount = items.filter(i => i.checked).length;
 ---
 
-<Layout title="Materials List">
+<Layout title="Shopping List">
   <div class="max-w-2xl mx-auto">
     <div class="flex items-center justify-between mb-8">
       <div>
-        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Materials List</h1>
+        <h1 class="text-3xl font-bold text-gray-900 dark:text-white">Shopping List</h1>
         <p class="mt-1 text-gray-600 dark:text-gray-400">
           {uncheckedCount} items to get{checkedCount > 0 && `, ${checkedCount} checked off`}
         </p>
@@ -60,8 +60,8 @@ const checkedCount = items.filter(i => i.checked).length;
         <svg class="w-16 h-16 mx-auto text-gray-300 dark:text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2" />
         </svg>
-        <h2 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">Materials list is empty</h2>
-        <p class="mt-2 text-gray-500 dark:text-gray-400">Add materials from a project to get started</p>
+        <h2 class="mt-4 text-lg font-medium text-gray-900 dark:text-white">Shopping list is empty</h2>
+        <p class="mt-2 text-gray-500 dark:text-gray-400">Add materials and tools from a project to get started</p>
         <a href="/" class="btn btn-primary mt-4">Browse Projects</a>
       </div>
     ) : (
@@ -75,9 +75,12 @@ const checkedCount = items.filter(i => i.checked).length;
               </button>
             </form>
             <div class="flex-1 min-w-0">
+              <span class={`text-xs px-1.5 py-0.5 rounded mr-2 ${item.item_type === 'tool' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'}`}>
+                {item.item_type === 'tool' ? 'Tool' : 'Material'}
+              </span>
               <span class="text-gray-900 dark:text-white">
                 {item.quantity && <strong>{item.quantity}</strong>}
-                {' '}{item.material_name}
+                {' '}{item.name}
               </span>
               {item.notes && (
                 <span class="text-gray-500 text-sm ml-2">({item.notes})</span>
@@ -112,9 +115,12 @@ const checkedCount = items.filter(i => i.checked).length;
                   </button>
                 </form>
                 <div class="flex-1 min-w-0">
+                  <span class={`text-xs px-1.5 py-0.5 rounded mr-2 ${item.item_type === 'tool' ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300' : 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300'}`}>
+                    {item.item_type === 'tool' ? 'Tool' : 'Material'}
+                  </span>
                   <span class="line-through text-gray-500">
                     {item.quantity && <strong>{item.quantity}</strong>}
-                    {' '}{item.material_name}
+                    {' '}{item.name}
                   </span>
                   {item.notes && (
                     <span class="text-gray-400 text-sm ml-2">({item.notes})</span>
