@@ -1,0 +1,138 @@
+version: '3'
+
+vars:
+  RECIPEAPP_PORT: '{{.RECIPEAPP_PORT | default "4002"}}'
+  DIYVIEWER_PORT: '{{.DIYVIEWER_PORT | default "4003"}}'
+
+tasks:
+  # ============================================
+  # Recipe App
+  # ============================================
+  recipeapp:deps:
+    desc: Install recipeapp dependencies
+    dir: ./recipeapp
+    cmds:
+      - npm install
+
+  recipeapp:dev:
+    desc: Run recipeapp locally (default port 4002, override with RECIPEAPP_PORT=xxxx)
+    dir: ./recipeapp
+    cmds:
+      - npm run dev -- --port {{.RECIPEAPP_PORT}}
+
+  recipeapp:build:
+    desc: Build recipeapp
+    dir: ./recipeapp
+    cmds:
+      - npm run build
+
+  recipeapp:preview:
+    desc: Preview recipeapp build
+    dir: ./recipeapp
+    cmds:
+      - npm run preview
+
+  recipeapp:deps:update:
+    desc: Update recipeapp dependencies within semver ranges (safe)
+    dir: ./recipeapp
+    cmds:
+      - npm update
+
+  recipeapp:deps:upgrade:
+    desc: Upgrade recipeapp dependencies to latest versions
+    dir: ./recipeapp
+    cmds:
+      - npx npm-check-updates -u
+      - npm install
+
+  recipeapp:lint:
+    desc: Lint recipeapp code
+    dir: ./recipeapp
+    cmds:
+      - npm run lint 2>/dev/null || echo "No lint script configured"
+
+  # ============================================
+  # DIY Viewer
+  # ============================================
+  diyviewer:deps:
+    desc: Install diyviewer dependencies
+    dir: ./diyviewer
+    cmds:
+      - npm install
+
+  diyviewer:dev:
+    desc: Run diyviewer locally (default port 4003, override with DIYVIEWER_PORT=xxxx)
+    dir: ./diyviewer
+    cmds:
+      - npm run dev -- --port {{.DIYVIEWER_PORT}}
+
+  diyviewer:build:
+    desc: Build diyviewer
+    dir: ./diyviewer
+    cmds:
+      - npm run build
+
+  diyviewer:preview:
+    desc: Preview diyviewer build
+    dir: ./diyviewer
+    cmds:
+      - npm run preview
+
+  diyviewer:deps:update:
+    desc: Update diyviewer dependencies within semver ranges (safe)
+    dir: ./diyviewer
+    cmds:
+      - npm update
+
+  diyviewer:deps:upgrade:
+    desc: Upgrade diyviewer dependencies to latest versions
+    dir: ./diyviewer
+    cmds:
+      - npx npm-check-updates -u
+      - npm install
+
+  diyviewer:lint:
+    desc: Lint diyviewer code
+    dir: ./diyviewer
+    cmds:
+      - npm run lint 2>/dev/null || echo "No lint script configured"
+
+  # ============================================
+  # Combined tasks
+  # ============================================
+  deps:
+    desc: Install all dependencies
+    cmds:
+      - task: recipeapp:deps
+      - task: diyviewer:deps
+
+  build:
+    desc: Build all apps
+    cmds:
+      - task: recipeapp:build
+      - task: diyviewer:build
+
+  deps:update:
+    desc: Update all dependencies within semver ranges (safe)
+    cmds:
+      - task: recipeapp:deps:update
+      - task: diyviewer:deps:update
+
+  deps:upgrade:
+    desc: Upgrade all dependencies to latest versions
+    cmds:
+      - task: recipeapp:deps:upgrade
+      - task: diyviewer:deps:upgrade
+
+  lint:
+    desc: Lint all apps
+    cmds:
+      - task: recipeapp:lint
+      - task: diyviewer:lint
+
+  dev:
+    desc: Show how to run dev servers
+    cmds:
+      - echo "Run 'task recipeapp:dev' for Recipe App (port {{.RECIPEAPP_PORT}})"
+      - echo "Run 'task diyviewer:dev' for DIY Viewer (port {{.DIYVIEWER_PORT}})"
+      - echo "Override ports with RECIPEAPP_PORT=xxxx or DIYVIEWER_PORT=xxxx"
