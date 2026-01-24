@@ -69,6 +69,12 @@ function generateTutorialSeed(tutorialId: string, remote: boolean): string {
     remote
   );
 
+  // Fetch step images for all steps
+  const stepIds = steps.map((s: any) => escapeSQL(s.id)).join(', ');
+  const stepImages = stepIds
+    ? runD1Query(`SELECT * FROM step_images WHERE step_id IN (${stepIds}) ORDER BY step_id, sort_order`, remote)
+    : [];
+
   // Generate SQL
   const lines: string[] = [
     '-- Seed data for DIY Viewer App',
@@ -107,11 +113,11 @@ function generateTutorialSeed(tutorialId: string, remote: boolean): string {
   // Materials
   if (materials.length > 0) {
     lines.push('-- Materials');
-    lines.push(`INSERT OR REPLACE INTO materials (id, tutorial_id, name, quantity, notes, measurement_original, measurement_metric, measurement_imperial, sort_order) VALUES`);
+    lines.push(`INSERT OR REPLACE INTO materials (id, tutorial_id, name, quantity, notes, measurement_json, sort_order) VALUES`);
 
     const matValues = materials.map((m: any, idx: number) => {
       const comma = idx < materials.length - 1 ? ',' : ';';
-      return `  (${escapeSQL(m.id)}, ${escapeSQL(m.tutorial_id)}, ${escapeSQL(m.name)}, ${escapeSQL(m.quantity)}, ${escapeSQL(m.notes)}, ${escapeSQL(m.measurement_original)}, ${escapeSQL(m.measurement_metric)}, ${escapeSQL(m.measurement_imperial)}, ${m.sort_order})${comma}`;
+      return `  (${escapeSQL(m.id)}, ${escapeSQL(m.tutorial_id)}, ${escapeSQL(m.name)}, ${escapeSQL(m.quantity)}, ${escapeSQL(m.notes)}, ${escapeSQL(m.measurement_json)}, ${m.sort_order})${comma}`;
     });
     lines.push(...matValues);
     lines.push('');
@@ -133,13 +139,26 @@ function generateTutorialSeed(tutorialId: string, remote: boolean): string {
   // Steps
   if (steps.length > 0) {
     lines.push('-- Steps');
-    lines.push(`INSERT OR REPLACE INTO steps (id, tutorial_id, step_number, title, instructions, tips, image_urls, measurements) VALUES`);
+    lines.push(`INSERT OR REPLACE INTO steps (id, tutorial_id, step_number, title, instructions, tips, measurements_json) VALUES`);
 
     const stepValues = steps.map((s: any, idx: number) => {
       const comma = idx < steps.length - 1 ? ',' : ';';
-      return `  (${escapeSQL(s.id)}, ${escapeSQL(s.tutorial_id)}, ${s.step_number}, ${escapeSQL(s.title)}, ${escapeSQL(s.instructions)}, ${escapeSQL(s.tips)}, ${escapeSQL(s.image_urls)}, ${escapeSQL(s.measurements)})${comma}`;
+      return `  (${escapeSQL(s.id)}, ${escapeSQL(s.tutorial_id)}, ${s.step_number}, ${escapeSQL(s.title)}, ${escapeSQL(s.instructions)}, ${escapeSQL(s.tips)}, ${escapeSQL(s.measurements_json)})${comma}`;
     });
     lines.push(...stepValues);
+    lines.push('');
+  }
+
+  // Step images
+  if (stepImages.length > 0) {
+    lines.push('-- Step Images');
+    lines.push(`INSERT OR REPLACE INTO step_images (id, step_id, image_url, sort_order) VALUES`);
+
+    const imageValues = stepImages.map((img: any, idx: number) => {
+      const comma = idx < stepImages.length - 1 ? ',' : ';';
+      return `  (${escapeSQL(img.id)}, ${escapeSQL(img.step_id)}, ${escapeSQL(img.image_url)}, ${img.sort_order})${comma}`;
+    });
+    lines.push(...imageValues);
     lines.push('');
   }
 
