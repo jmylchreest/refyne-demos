@@ -122,22 +122,82 @@ if (Astro.request.method === 'POST') {
     <!-- Extraction Progress (shown during extraction) -->
     <div id="progress-container" class="hidden">
       <div class="card p-6">
-        <div class="flex items-center gap-4">
-          <div class="spinner-large"></div>
-          <div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Extracting Tutorial</h3>
-            <p id="progress-status" class="text-sm text-gray-600 dark:text-gray-400">Starting extraction...</p>
-            <p id="progress-time" class="text-xs text-gray-400 mt-1">Elapsed: 0s</p>
+        <!-- Header with job info -->
+        <div class="flex items-center justify-between mb-4">
+          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Extracting Tutorial</h3>
+          <div class="flex items-center gap-2">
+            <span class="relative flex h-2 w-2">
+              <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75"></span>
+              <span class="relative inline-flex rounded-full h-2 w-2 bg-amber-500"></span>
+            </span>
+            <span id="progress-time" class="text-xs text-gray-500 dark:text-gray-400 font-mono">0s</span>
           </div>
         </div>
-        <div class="mt-4">
-          <div class="h-2 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div id="progress-bar" class="h-full bg-amber-500 transition-all duration-300" style="width: 10%"></div>
+
+        <!-- Job ID badge -->
+        <div id="job-id-container" class="hidden mb-4">
+          <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400">
+            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+            </svg>
+            Job: <code id="job-id" class="font-mono"></code>
+          </span>
+        </div>
+
+        <!-- Step indicators -->
+        <div class="space-y-3 mb-6">
+          <!-- Step 1: Job Created -->
+          <div id="step-1" class="flex items-center gap-3 text-sm">
+            <div id="step-1-icon" class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-400">
+              <span class="text-xs font-medium">1</span>
+            </div>
+            <span id="step-1-text" class="text-gray-500 dark:text-gray-400">Create extraction job</span>
+          </div>
+
+          <!-- Step 2: Fetching Page -->
+          <div id="step-2" class="flex items-center gap-3 text-sm">
+            <div id="step-2-icon" class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-400">
+              <span class="text-xs font-medium">2</span>
+            </div>
+            <span id="step-2-text" class="text-gray-500 dark:text-gray-400">Fetch page content</span>
+          </div>
+
+          <!-- Step 3: Processing -->
+          <div id="step-3" class="flex items-center gap-3 text-sm">
+            <div id="step-3-icon" class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-400">
+              <span class="text-xs font-medium">3</span>
+            </div>
+            <span id="step-3-text" class="text-gray-500 dark:text-gray-400">Extract structured data with AI</span>
+          </div>
+
+          <!-- Step 4: Complete -->
+          <div id="step-4" class="flex items-center gap-3 text-sm">
+            <div id="step-4-icon" class="flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center bg-gray-200 dark:bg-gray-700 text-gray-400">
+              <span class="text-xs font-medium">4</span>
+            </div>
+            <span id="step-4-text" class="text-gray-500 dark:text-gray-400">Ready for review</span>
           </div>
         </div>
-        <p class="mt-3 text-xs text-gray-500 dark:text-gray-400">
-          Large tutorials may take up to 2 minutes to extract. Please wait...
+
+        <!-- Progress bar -->
+        <div class="h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+          <div id="progress-bar" class="h-full bg-gradient-to-r from-amber-500 to-amber-400 transition-all duration-500 ease-out" style="width: 5%"></div>
+        </div>
+
+        <!-- Status message -->
+        <p id="progress-status" class="mt-3 text-sm text-gray-600 dark:text-gray-400">
+          Initializing...
         </p>
+
+        <!-- Cancel button -->
+        <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+          <button type="button" id="cancel-btn" class="text-sm text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 flex items-center gap-1">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Cancel extraction
+          </button>
+        </div>
       </div>
     </div>
 
@@ -228,17 +288,13 @@ if (Astro.request.method === 'POST') {
 </Layout>
 
 <style>
-  .spinner-large {
-    width: 48px;
-    height: 48px;
-    border: 4px solid #e5e7eb;
-    border-top-color: #f59e0b;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+  /* Pulse animation for active step */
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
   }
-
-  @keyframes spin {
-    to { transform: rotate(360deg); }
+  .animate-pulse {
+    animation: pulse 1.5s ease-in-out infinite;
   }
 </style>
 
@@ -256,10 +312,14 @@ if (Astro.request.method === 'POST') {
   const progressStatus = document.getElementById('progress-status');
   const progressTime = document.getElementById('progress-time');
   const progressBar = document.getElementById('progress-bar');
+  const jobIdContainer = document.getElementById('job-id-container');
+  const jobIdEl = document.getElementById('job-id');
+  const cancelBtn = document.getElementById('cancel-btn');
 
   let pollInterval: ReturnType<typeof setInterval> | null = null;
   let startTime: number = 0;
   let elapsedInterval: ReturnType<typeof setInterval> | null = null;
+  let currentStep = 0;
 
   function showError(msg: string) {
     errorMessage!.textContent = msg;
@@ -309,10 +369,64 @@ if (Astro.request.method === 'POST') {
 
   function updateElapsed() {
     const elapsed = Math.floor((Date.now() - startTime) / 1000);
-    progressTime!.textContent = `Elapsed: ${elapsed}s`;
-    // Slowly increase progress bar (never reaches 100% until complete)
-    const progress = Math.min(10 + (elapsed * 0.5), 90);
+    progressTime!.textContent = `${elapsed}s`;
+    // Progress based on current step (each step is ~25%)
+    const baseProgress = currentStep * 25;
+    const stepProgress = Math.min((elapsed % 30) * 0.8, 20); // Slow progress within step
+    const progress = Math.min(baseProgress + stepProgress, 95);
     progressBar!.style.width = `${progress}%`;
+  }
+
+  function setStep(step: number, status: 'pending' | 'active' | 'complete') {
+    const icon = document.getElementById(`step-${step}-icon`);
+    const text = document.getElementById(`step-${step}-text`);
+    if (!icon || !text) return;
+
+    // Reset classes
+    icon.className = 'flex-shrink-0 w-6 h-6 rounded-full flex items-center justify-center';
+    text.className = '';
+
+    if (status === 'complete') {
+      icon.classList.add('bg-green-500', 'text-white');
+      icon.innerHTML = '<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>';
+      text.classList.add('text-green-600', 'dark:text-green-400', 'font-medium');
+    } else if (status === 'active') {
+      icon.classList.add('bg-amber-500', 'text-white', 'animate-pulse');
+      icon.innerHTML = `<span class="text-xs font-medium">${step}</span>`;
+      text.classList.add('text-amber-600', 'dark:text-amber-400', 'font-medium');
+    } else {
+      icon.classList.add('bg-gray-200', 'dark:bg-gray-700', 'text-gray-400');
+      icon.innerHTML = `<span class="text-xs font-medium">${step}</span>`;
+      text.classList.add('text-gray-500', 'dark:text-gray-400');
+    }
+  }
+
+  function resetSteps() {
+    currentStep = 0;
+    for (let i = 1; i <= 4; i++) {
+      setStep(i, 'pending');
+    }
+    jobIdContainer!.classList.add('hidden');
+  }
+
+  function showJobId(jobId: string) {
+    jobIdEl!.textContent = jobId.slice(0, 8) + '...';
+    jobIdContainer!.classList.remove('hidden');
+  }
+
+  function advanceToStep(step: number, statusText: string) {
+    currentStep = step;
+    // Mark previous steps as complete
+    for (let i = 1; i < step; i++) {
+      setStep(i, 'complete');
+    }
+    // Mark current step as active
+    setStep(step, 'active');
+    // Mark future steps as pending
+    for (let i = step + 1; i <= 4; i++) {
+      setStep(i, 'pending');
+    }
+    progressStatus!.textContent = statusText;
   }
 
   function startElapsedTimer() {
@@ -429,8 +543,9 @@ if (Astro.request.method === 'POST') {
     hideError();
     setExtractBtnLoading();
     showProgress();
-    progressStatus!.textContent = 'Starting extraction...';
-    progressBar!.style.width = '10%';
+    resetSteps();
+    advanceToStep(1, 'Creating extraction job...');
+    progressBar!.style.width = '5%';
     startElapsedTimer();
 
     try {
@@ -447,22 +562,27 @@ if (Astro.request.method === 'POST') {
         throw new Error(result.error || 'Failed to start extraction');
       }
 
+      // Show job ID
+      if (result.jobId) {
+        showJobId(result.jobId);
+      }
+
       // If completed immediately, show results
       if (result.status === 'completed' && result.data) {
+        // Quick complete - advance through all steps
+        advanceToStep(4, 'Complete!');
+        setStep(4, 'complete');
         stopElapsedTimer();
         progressBar!.style.width = '100%';
         result.data.source_url = url;
-        showSaveForm(result.data);
+        setTimeout(() => showSaveForm(result.data), 500);
         return;
       }
 
-      // Start polling for results
-      if (result.jobId) {
-        progressStatus!.textContent = 'Extraction in progress...';
-        pollForResults(result.jobId, url);
-      } else {
-        throw new Error('No job ID returned');
-      }
+      // Job created, start polling
+      setStep(1, 'complete');
+      advanceToStep(2, 'Fetching page content...');
+      pollForResults(result.jobId, url);
     } catch (error: any) {
       stopElapsedTimer();
       showUrlForm();
@@ -473,6 +593,7 @@ if (Astro.request.method === 'POST') {
   async function pollForResults(jobId: string, sourceUrl: string) {
     const maxAttempts = 120; // 2 minutes max with 1 second interval
     let attempts = 0;
+    let lastStatus = '';
 
     pollInterval = setInterval(async () => {
       attempts++;
@@ -490,7 +611,7 @@ if (Astro.request.method === 'POST') {
         const response = await fetch(`/api/poll/${jobId}`);
         const result = await response.json();
 
-        if (!result.success && result.status !== 'running') {
+        if (!result.success && result.status !== 'running' && result.status !== 'pending') {
           clearInterval(pollInterval!);
           pollInterval = null;
           stopElapsedTimer();
@@ -499,21 +620,44 @@ if (Astro.request.method === 'POST') {
           return;
         }
 
-        // Update status message
-        if (result.status === 'running') {
-          progressStatus!.textContent = 'Processing page content...';
-        } else if (result.status === 'pending') {
-          progressStatus!.textContent = 'Waiting to start...';
+        // Update step indicators based on status and elapsed time
+        if (result.status !== lastStatus || attempts % 10 === 0) {
+          lastStatus = result.status;
+
+          if (result.status === 'pending') {
+            advanceToStep(2, 'Waiting in queue...');
+          } else if (result.status === 'running') {
+            // Progress through steps based on time elapsed
+            const elapsed = Math.floor((Date.now() - startTime) / 1000);
+            if (elapsed < 10) {
+              advanceToStep(2, 'Fetching page content...');
+            } else if (elapsed < 30) {
+              advanceToStep(3, 'Extracting data with AI...');
+            } else {
+              // Cycle through messages for longer extractions
+              const messages = [
+                'Processing content structure...',
+                'Analyzing materials and tools...',
+                'Extracting step-by-step instructions...',
+                'Generating glossary terms...',
+                'Finalizing extraction...',
+              ];
+              const msgIndex = Math.floor((elapsed - 30) / 15) % messages.length;
+              progressStatus!.textContent = messages[msgIndex];
+            }
+          }
         }
 
         // Completed!
         if (result.status === 'completed' && result.data) {
           clearInterval(pollInterval!);
           pollInterval = null;
+          advanceToStep(4, 'Extraction complete!');
+          setStep(4, 'complete');
           stopElapsedTimer();
           progressBar!.style.width = '100%';
           result.data.source_url = sourceUrl;
-          showSaveForm(result.data);
+          setTimeout(() => showSaveForm(result.data), 600);
         }
       } catch (error: any) {
         // Network error - keep trying
@@ -546,6 +690,16 @@ if (Astro.request.method === 'POST') {
     }
     stopElapsedTimer();
     urlInput.value = '';
+    showUrlForm();
+    hideError();
+  });
+
+  cancelBtn?.addEventListener('click', () => {
+    if (pollInterval) {
+      clearInterval(pollInterval);
+      pollInterval = null;
+    }
+    stopElapsedTimer();
     showUrlForm();
     hideError();
   });
