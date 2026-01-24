@@ -37,7 +37,8 @@ for table in $TABLES; do
 done
 
 # Also drop the D1 migrations tracking table to force re-apply
-DROP_SQL="${DROP_SQL}DROP TABLE IF EXISTS _cf_KV; DROP TABLE IF EXISTS d1_migrations;"
+# Note: Do NOT drop _cf_KV - it's a protected internal Cloudflare table
+DROP_SQL="${DROP_SQL}DROP TABLE IF EXISTS d1_migrations;"
 
 echo "Dropping tables..."
 npx wrangler d1 execute "$DB_NAME" --remote --command "$DROP_SQL"
