@@ -349,7 +349,7 @@ export async function extractTutorial(
 
 export interface CrawlJobStartResponse {
   success: boolean;
-  job_id?: string;
+  jobId?: string;
   error?: string;
 }
 
@@ -395,7 +395,7 @@ export async function startExtraction(
 
     return {
       success: true,
-      job_id: jobId,
+      jobId: jobId,
     };
   } catch (error) {
     console.error('[startExtraction] Error:', error);
