@@ -44,6 +44,10 @@ echo "Dropping tables..."
 npx wrangler d1 execute "$DB_NAME" --remote --command "$DROP_SQL"
 
 echo "Applying migrations..."
-npx wrangler d1 migrations apply "$DB_NAME" --remote
+# Execute migration files directly in sorted order (avoids needing wrangler.toml)
+for migration in $(ls "$MIGRATIONS_DIR"/*.sql | sort); do
+  echo "  Applying: $(basename "$migration")"
+  npx wrangler d1 execute "$DB_NAME" --remote --file="$migration"
+done
 
 echo "Database reset complete"
