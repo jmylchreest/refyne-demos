@@ -28,6 +28,19 @@ export interface ToolItem {
   required: boolean;
 }
 
+export interface SkillReference {
+  skill_name: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  description: string;
+  search_query: string;
+}
+
+export interface SafetyWarning {
+  warning: string;
+  severity: 'caution' | 'warning' | 'danger';
+  ppe_required?: string[];
+}
+
 export interface TutorialStep {
   step_number: number;
   title: string;
@@ -35,6 +48,8 @@ export interface TutorialStep {
   tips?: string;
   image_urls?: string[];
   measurements?: MeasurementConversion[];
+  skill_references?: SkillReference[];
+  safety_warnings?: SafetyWarning[];
 }
 
 export interface ExtractedTutorial {
@@ -240,6 +255,60 @@ fields:
                 type: string
                 description: Imperial equivalent
                 required: true
+        skill_references:
+          type: array
+          description: |
+            When this step mentions a technique or skill that beginners might not know,
+            provide a reference to help them learn. Examples:
+            - "threading a needle" for sewing projects
+            - "using a miter saw safely" for woodworking
+            - "soldering components" for electronics
+            Only include skills that are actually performed in this step.
+          items:
+            type: object
+            properties:
+              skill_name:
+                type: string
+                description: The technique or skill mentioned (e.g., "threading a needle")
+                required: true
+              difficulty:
+                type: string
+                description: Skill difficulty - "beginner", "intermediate", or "advanced"
+                required: true
+              description:
+                type: string
+                description: Brief explanation of what this skill involves
+                required: true
+              search_query:
+                type: string
+                description: A search query to find tutorials (e.g., "how to thread a needle for beginners tutorial")
+                required: true
+        safety_warnings:
+          type: array
+          description: |
+            Important safety information for this step. Include warnings about:
+            - Power tool usage and safety
+            - Chemical or fume hazards
+            - Sharp objects or cutting tools
+            - Electrical safety
+            - Heat or fire risks
+            - Required protective equipment
+          items:
+            type: object
+            properties:
+              warning:
+                type: string
+                description: The safety warning text
+                required: true
+              severity:
+                type: string
+                description: '"caution" (minor risk), "warning" (moderate risk), or "danger" (serious risk)'
+                required: true
+              ppe_required:
+                type: array
+                description: Required protective equipment (e.g., "safety glasses", "gloves", "hearing protection")
+                items:
+                  type: string
 
   - name: tags
     type: array
@@ -325,6 +394,17 @@ export async function extractTutorial(
               original: m.original || '',
               metric: m.metric || '',
               imperial: m.imperial || '',
+            })),
+            skill_references: (step.skill_references || []).map((s: any) => ({
+              skill_name: s.skill_name || '',
+              difficulty: s.difficulty || 'beginner',
+              description: s.description || '',
+              search_query: s.search_query || '',
+            })),
+            safety_warnings: (step.safety_warnings || []).map((w: any) => ({
+              warning: w.warning || '',
+              severity: w.severity || 'caution',
+              ppe_required: w.ppe_required || [],
             })),
           })),
           tags: extracted.tags,
@@ -524,6 +604,17 @@ function transformExtractedData(extracted: any): ExtractedTutorial {
         original: m.original || '',
         metric: m.metric || '',
         imperial: m.imperial || '',
+      })),
+      skill_references: (step.skill_references || []).map((s: any) => ({
+        skill_name: s.skill_name || '',
+        difficulty: s.difficulty || 'beginner',
+        description: s.description || '',
+        search_query: s.search_query || '',
+      })),
+      safety_warnings: (step.safety_warnings || []).map((w: any) => ({
+        warning: w.warning || '',
+        severity: w.severity || 'caution',
+        ppe_required: w.ppe_required || [],
       })),
     })),
     tags: extracted.tags,

@@ -47,6 +47,25 @@ export interface Tool {
   sort_order: number;
 }
 
+export interface SkillReference {
+  id: string;
+  step_id: string;
+  skill_name: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  description: string;
+  search_query: string;
+  sort_order: number;
+}
+
+export interface SafetyWarning {
+  id: string;
+  step_id: string;
+  warning: string;
+  severity: 'caution' | 'warning' | 'danger';
+  ppe_required: string[];
+  sort_order: number;
+}
+
 export interface Step {
   id: string;
   tutorial_id: string;
@@ -64,6 +83,13 @@ export interface StepImage {
   sort_order: number;
 }
 
+export interface StepWithDetails extends Step {
+  images: StepImage[];
+  skill_references: SkillReference[];
+  safety_warnings: SafetyWarning[];
+}
+
+// Legacy alias for compatibility
 export interface StepWithImages extends Step {
   images: StepImage[];
 }
@@ -83,7 +109,7 @@ export interface TutorialWithDetails extends Tutorial {
   glossary: GlossaryTerm[];
   materials: Material[];
   tools: Tool[];
-  steps: StepWithImages[];
+  steps: StepWithDetails[];
 }
 
 // Helper to generate UUIDs
@@ -147,15 +173,39 @@ export async function getTutorialById(db: D1Database, id: string): Promise<Tutor
     .bind(id)
     .all<Omit<Step, 'measurements'> & { measurements_json: string | null }>();
 
-  // Get images for each step
-  const stepsWithImages: StepWithImages[] = [];
+  // Get images, skill references, and safety warnings for each step
+  const stepsWithDetails: StepWithDetails[] = [];
   for (const stepRaw of stepsRaw || []) {
     const { results: images } = await db
       .prepare('SELECT * FROM step_images WHERE step_id = ? ORDER BY sort_order')
       .bind(stepRaw.id)
       .all<StepImage>();
 
-    stepsWithImages.push({
+    const { results: skillRefsRaw } = await db
+      .prepare('SELECT * FROM step_skill_references WHERE step_id = ? ORDER BY sort_order')
+      .bind(stepRaw.id)
+      .all<Omit<SkillReference, 'difficulty'> & { difficulty: string }>();
+
+    const skillRefs: SkillReference[] = (skillRefsRaw || []).map(s => ({
+      ...s,
+      difficulty: s.difficulty as 'beginner' | 'intermediate' | 'advanced',
+    }));
+
+    const { results: safetyRaw } = await db
+      .prepare('SELECT * FROM step_safety_warnings WHERE step_id = ? ORDER BY sort_order')
+      .bind(stepRaw.id)
+      .all<Omit<SafetyWarning, 'severity' | 'ppe_required'> & { severity: string; ppe_required_json: string | null }>();
+
+    const safetyWarnings: SafetyWarning[] = (safetyRaw || []).map(w => ({
+      id: w.id,
+      step_id: w.step_id,
+      warning: w.warning,
+      severity: w.severity as 'caution' | 'warning' | 'danger',
+      ppe_required: w.ppe_required_json ? JSON.parse(w.ppe_required_json) : [],
+      sort_order: w.sort_order,
+    }));
+
+    stepsWithDetails.push({
       id: stepRaw.id,
       tutorial_id: stepRaw.tutorial_id,
       step_number: stepRaw.step_number,
@@ -164,6 +214,8 @@ export async function getTutorialById(db: D1Database, id: string): Promise<Tutor
       tips: stepRaw.tips,
       measurements: stepRaw.measurements_json ? JSON.parse(stepRaw.measurements_json) : [],
       images: images || [],
+      skill_references: skillRefs,
+      safety_warnings: safetyWarnings,
     });
   }
 
@@ -172,7 +224,7 @@ export async function getTutorialById(db: D1Database, id: string): Promise<Tutor
     glossary: glossary || [],
     materials,
     tools,
-    steps: stepsWithImages,
+    steps: stepsWithDetails,
   };
 }
 
@@ -207,6 +259,19 @@ export interface AddToolInput {
   required: boolean;
 }
 
+export interface AddSkillReferenceInput {
+  skill_name: string;
+  difficulty: 'beginner' | 'intermediate' | 'advanced';
+  description: string;
+  search_query: string;
+}
+
+export interface AddSafetyWarningInput {
+  warning: string;
+  severity: 'caution' | 'warning' | 'danger';
+  ppe_required?: string[];
+}
+
 export interface AddStepInput {
   step_number: number;
   title: string;
@@ -214,6 +279,8 @@ export interface AddStepInput {
   tips?: string;
   image_urls?: string[];
   measurements?: MeasurementConversion[];
+  skill_references?: AddSkillReferenceInput[];
+  safety_warnings?: AddSafetyWarningInput[];
 }
 
 // Add a new tutorial with all related data
@@ -310,6 +377,37 @@ export async function addTutorial(
           .run();
       }
     }
+
+    // Insert skill references
+    if (step.skill_references) {
+      for (let i = 0; i < step.skill_references.length; i++) {
+        const skill = step.skill_references[i];
+        await db
+          .prepare(
+            `INSERT INTO step_skill_references (id, step_id, skill_name, difficulty, description, search_query, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?, ?)`
+          )
+          .bind(generateId(), stepId, skill.skill_name, skill.difficulty, skill.description, skill.search_query, i)
+          .run();
+      }
+    }
+
+    // Insert safety warnings
+    if (step.safety_warnings) {
+      for (let i = 0; i < step.safety_warnings.length; i++) {
+        const warning = step.safety_warnings[i];
+        const ppeJson = warning.ppe_required && warning.ppe_required.length > 0
+          ? JSON.stringify(warning.ppe_required)
+          : null;
+        await db
+          .prepare(
+            `INSERT INTO step_safety_warnings (id, step_id, warning, severity, ppe_required_json, sort_order)
+             VALUES (?, ?, ?, ?, ?, ?)`
+          )
+          .bind(generateId(), stepId, warning.warning, warning.severity, ppeJson, i)
+          .run();
+      }
+    }
   }
 
   return tutorialId;
@@ -323,9 +421,11 @@ export async function deleteTutorial(db: D1Database, id: string): Promise<void> 
     .bind(id)
     .all<{ id: string }>();
 
-  // Delete step images
+  // Delete step-related data
   for (const step of steps || []) {
     await db.prepare('DELETE FROM step_images WHERE step_id = ?').bind(step.id).run();
+    await db.prepare('DELETE FROM step_skill_references WHERE step_id = ?').bind(step.id).run();
+    await db.prepare('DELETE FROM step_safety_warnings WHERE step_id = ?').bind(step.id).run();
   }
 
   // Delete related data (glossary, tools handled by CASCADE)
