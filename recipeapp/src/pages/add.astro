@@ -305,8 +305,10 @@ if (Astro.request.method === 'POST') {
     if (extractBtn) {
       extractBtn.setAttribute('disabled', 'true');
     }
+    // Use readonly instead of disabled so the value still submits
     if (urlInput) {
-      urlInput.setAttribute('disabled', 'true');
+      urlInput.setAttribute('readonly', 'true');
+      urlInput.classList.add('opacity-50', 'cursor-not-allowed');
     }
   });
 
