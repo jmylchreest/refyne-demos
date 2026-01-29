@@ -136,6 +136,7 @@ fields:
 
   - name: materials
     type: array
+    required: true
     description: |
       Consumable materials needed for the project (things that get used up or become part of the finished project).
       Examples: lumber, screws, paint, glue, sandpaper, etc.
@@ -171,6 +172,7 @@ fields:
 
   - name: tools
     type: array
+    required: true
     description: |
       Reusable tools and equipment needed for the project.
       Examples: drill, saw, hammer, measuring tape, clamps, safety glasses, etc.
@@ -191,6 +193,7 @@ fields:
 
   - name: steps
     type: array
+    required: true
     description: Step-by-step instructions for completing the project. Only include steps with actual actionable instructions.
     items:
       type: object
