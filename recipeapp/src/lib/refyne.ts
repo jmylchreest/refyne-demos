@@ -54,19 +54,22 @@ description: |
   Extract recipe details from a webpage.
 
   FIRST, determine the page type:
-  - "recipe" = A single recipe page with ingredients and instructions
-  - "collection" = A listing/index page showing multiple recipes (e.g., search results, category pages, ingredient pages)
+  - "recipe" = A page with ONE main recipe that has its own Ingredients section AND Method/Instructions section
+  - "collection" = A listing/index page that ONLY shows links to multiple recipes (no ingredients or method on the page itself)
 
-  If this is a COLLECTION page:
+  IMPORTANT: A recipe page may have a "Related recipes" or "You might also like" section at the bottom - this does NOT make it a collection page. If the page has its own Ingredients and Method sections, it is a RECIPE page.
+
+  If this is a COLLECTION page (no ingredients/method, just links):
   - Set page_type to "collection"
   - Extract the title of the collection
   - Extract links to individual recipe pages (up to 10)
   - Leave recipe-specific fields empty
 
-  If this is a RECIPE page:
+  If this is a RECIPE page (has ingredients AND method):
   - Set page_type to "recipe"
-  - Extract all recipe details as normal
+  - Extract ALL recipe details (ingredients, instructions, times, etc.)
   - Leave recipe_links empty
+  - IGNORE the "Related recipes" section - do not confuse it with collection links
 
   IMPORTANT: Only extract images that are directly relevant to the recipe:
   - The main recipe/dish photo
