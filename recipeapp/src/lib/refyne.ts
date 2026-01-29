@@ -143,6 +143,7 @@ fields:
 
   - name: ingredients
     type: array
+    required: true
     description: |
       List of ingredients. IMPORTANT parsing rules:
       - Ingredients may contain markdown links like [ingredient](/path) - extract just the text, not the link
@@ -175,6 +176,7 @@ fields:
 
   - name: instructions
     type: array
+    required: true
     description: |
       Step-by-step cooking instructions. Extract ALL numbered steps from the Method section.
       Each step should be the complete instruction text.
