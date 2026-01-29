@@ -5,7 +5,7 @@ export const POST: APIRoute = async ({ request, locals }) => {
   const env = (locals as any).runtime.env;
 
   try {
-    const body = await request.json();
+    const body = await request.json() as { url?: string };
     const { url } = body;
 
     if (!url) {

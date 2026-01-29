@@ -108,9 +108,17 @@ fields:
   - name: image_url
     type: string
     description: |
-      URL of the main project/tutorial image (the hero/featured image).
+      URL of the main project/tutorial image showing the FINISHED PROJECT or the project being built.
+      This should be the hero/featured image that represents what the tutorial creates.
+
+      IMPORTANT - DO NOT use:
+      - Author photos or profile pictures (headshots of people)
+      - Avatar images or small circular profile images
+      - Advertisement or promotional images unrelated to the project
+      - Social media icons or logos
+
+      Look for the largest, most prominent image showing the actual project/build result.
       Extract from markdown format ![alt](URL) - return just the URL portion.
-      Look for the first prominent image, typically from content.instructables.com or similar.
 
   - name: author
     type: string
@@ -347,6 +355,7 @@ export async function extractTutorial(
         url,
         schema: TUTORIAL_SCHEMA,
         capture_debug: true,
+        fetch_mode: 'auto',
       });
 
       clearTimeout(timeoutId);
@@ -470,6 +479,7 @@ export async function startExtraction(
       url,
       schema: TUTORIAL_SCHEMA,
       capture_debug: true,
+      fetch_mode: 'auto', // Auto-detect when browser rendering is needed
     });
 
     const jobId = (response as any).job_id || (response as any).id;

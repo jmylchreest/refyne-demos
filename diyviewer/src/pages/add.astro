@@ -46,7 +46,7 @@ if (Astro.request.method === 'POST') {
           notes: tool.notes,
           required: tool.required !== false,
         })),
-        // Steps with measurements
+        // Steps with measurements, skill references, and safety warnings
         (tutorialData.steps || []).map((step: any) => ({
           step_number: step.step_number,
           title: step.title,
@@ -54,6 +54,8 @@ if (Astro.request.method === 'POST') {
           tips: step.tips,
           image_urls: step.image_urls || [],
           measurements: step.measurements || [],
+          skill_references: step.skill_references || [],
+          safety_warnings: step.safety_warnings || [],
         }))
       );
 
