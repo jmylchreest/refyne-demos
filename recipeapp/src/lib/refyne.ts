@@ -97,7 +97,8 @@ fields:
       properties:
         title:
           type: string
-          description: Recipe title
+          required: true
+          description: The recipe name/title - extract from the link text, heading, or caption associated with each recipe link. This should be descriptive like "Smoky cauliflower cheese" not just "Recipe".
         url:
           type: string
           required: true
