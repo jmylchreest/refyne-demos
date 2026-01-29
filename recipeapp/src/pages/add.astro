@@ -90,44 +90,60 @@ if (Astro.request.method === 'POST') {
     )}
 
     {!extractedData ? (
-      <form method="POST" class="card p-6">
-        <input type="hidden" name="action" value="extract" />
+      <div class="relative">
+        <!-- Loading Overlay -->
+        <div id="loading-overlay" class="hidden absolute inset-0 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm rounded-lg z-10 flex flex-col items-center justify-center">
+          <div class="flex flex-col items-center gap-4">
+            <div class="relative">
+              <div class="w-16 h-16 border-4 border-indigo-200 dark:border-indigo-900 rounded-full"></div>
+              <div class="w-16 h-16 border-4 border-indigo-600 dark:border-indigo-400 rounded-full border-t-transparent animate-spin absolute inset-0"></div>
+            </div>
+            <div class="text-center">
+              <p class="text-lg font-semibold text-gray-900 dark:text-white">Extracting Recipe</p>
+              <p class="text-sm text-gray-500 dark:text-gray-400 mt-1">Analyzing page content with AI...</p>
+            </div>
+          </div>
+        </div>
 
-        <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
-          Recipe URL
-        </label>
-        <div class="flex gap-3">
-          <input
-            type="url"
-            name="url"
-            placeholder="https://publicdomainrecipes.com/recipe/..."
-            class="input flex-1"
-            required
-          />
-          <button type="submit" class="btn btn-primary whitespace-nowrap" id="extract-btn">
-            <span class="btn-text">Extract Recipe</span>
-            <span class="btn-loading hidden">
-              <span class="spinner mr-2"></span>
-              Extracting...
-            </span>
-          </button>
-        </div>
-        <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
-          <p class="text-gray-600 dark:text-gray-400 mb-2">
-            Paste the URL of any webpage containing a recipe. Refyne will automatically extract the ingredients, instructions, and cooking times.
-          </p>
-          <p class="text-gray-500 dark:text-gray-500">
-            Try recipes from{' '}
-            <a href="https://publicdomainrecipes.com" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">
-              Public Domain Recipes
-            </a>
-            {' '}(copyright-free) or{' '}
-            <a href="https://demo.refyne.uk/recipes" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">
-              demo.refyne.uk
-            </a>
-          </p>
-        </div>
-      </form>
+        <form method="POST" class="card p-6" id="extract-form">
+          <input type="hidden" name="action" value="extract" />
+
+          <label class="block mb-2 font-medium text-gray-700 dark:text-gray-300">
+            Recipe URL
+          </label>
+          <div class="flex gap-3">
+            <input
+              type="url"
+              name="url"
+              placeholder="https://publicdomainrecipes.com/recipe/..."
+              class="input flex-1"
+              required
+              id="url-input"
+            />
+            <button type="submit" class="btn btn-primary whitespace-nowrap" id="extract-btn">
+              <svg class="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12" />
+              </svg>
+              Extract Recipe
+            </button>
+          </div>
+          <div class="mt-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg text-sm">
+            <p class="text-gray-600 dark:text-gray-400 mb-2">
+              Paste the URL of any webpage containing a recipe. Refyne will automatically extract the ingredients, instructions, and cooking times.
+            </p>
+            <p class="text-gray-500 dark:text-gray-500">
+              Try recipes from{' '}
+              <a href="https://publicdomainrecipes.com" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">
+                Public Domain Recipes
+              </a>
+              {' '}(copyright-free) or{' '}
+              <a href="https://demo.refyne.uk/recipes" target="_blank" rel="noopener" class="text-indigo-600 hover:underline">
+                demo.refyne.uk
+              </a>
+            </p>
+          </div>
+        </form>
+      </div>
     ) : extractedData.page_type === 'collection' ? (
       <!-- Collection Page Detected -->
       <div class="space-y-6">
@@ -275,15 +291,47 @@ if (Astro.request.method === 'POST') {
 </Layout>
 
 <script>
-  // Show loading state on extract
-  const form = document.querySelector('form');
-  const btn = document.getElementById('extract-btn');
+  // Show loading overlay on extract
+  const extractForm = document.getElementById('extract-form');
+  const loadingOverlay = document.getElementById('loading-overlay');
+  const extractBtn = document.getElementById('extract-btn');
+  const urlInput = document.getElementById('url-input');
 
-  form?.addEventListener('submit', () => {
-    if (btn) {
-      btn.querySelector('.btn-text')?.classList.add('hidden');
-      btn.querySelector('.btn-loading')?.classList.remove('hidden');
-      btn.setAttribute('disabled', 'true');
+  // Handle main extract form
+  extractForm?.addEventListener('submit', () => {
+    if (loadingOverlay) {
+      loadingOverlay.classList.remove('hidden');
     }
+    if (extractBtn) {
+      extractBtn.setAttribute('disabled', 'true');
+    }
+    if (urlInput) {
+      urlInput.setAttribute('disabled', 'true');
+    }
+  });
+
+  // Handle collection page recipe link clicks
+  document.querySelectorAll('form.contents').forEach((form) => {
+    form.addEventListener('submit', (e) => {
+      const btn = form.querySelector('button');
+      if (btn) {
+        // Show loading state on the clicked button
+        btn.innerHTML = `
+          <div class="flex items-center justify-center w-full">
+            <div class="w-5 h-5 border-2 border-indigo-200 dark:border-indigo-700 rounded-full border-t-indigo-600 dark:border-t-indigo-400 animate-spin mr-3"></div>
+            <span class="text-gray-600 dark:text-gray-300">Extracting...</span>
+          </div>
+        `;
+        btn.setAttribute('disabled', 'true');
+        btn.classList.add('opacity-75', 'cursor-wait');
+      }
+      // Disable all other buttons
+      document.querySelectorAll('form.contents button').forEach((otherBtn) => {
+        if (otherBtn !== btn) {
+          otherBtn.setAttribute('disabled', 'true');
+          otherBtn.classList.add('opacity-50');
+        }
+      });
+    });
   });
 </script>
