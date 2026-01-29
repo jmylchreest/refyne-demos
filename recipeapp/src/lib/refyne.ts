@@ -139,27 +139,42 @@ fields:
 
   - name: ingredients
     type: array
-    description: List of ingredients
+    description: |
+      List of ingredients. IMPORTANT parsing rules:
+      - Ingredients may contain markdown links like [ingredient](/path) - extract just the text, not the link
+      - Example: "1 large[cauliflower](/food/cauliflower), cut into florets" should become:
+        - quantity: "1"
+        - unit: "large" (or empty if "large" describes size not measurement)
+        - name: "cauliflower"
+        - notes: "cut into florets"
+      - Example: "500ml/18fl oz[milk](/food/milk)" should become:
+        - quantity: "500ml/18fl oz" or "500"
+        - unit: "ml" or "fl oz"
+        - name: "milk"
+      - Always extract ALL ingredients listed on the page, including sub-sections like "For the sauce"
     items:
       type: object
       properties:
         name:
           type: string
           required: true
-          description: Ingredient name
+          description: Ingredient name (plain text, no markdown links)
         quantity:
           type: string
-          description: Amount (e.g., "2", "1/2")
+          description: Amount (e.g., "2", "1/2", "500")
         unit:
           type: string
-          description: Unit of measure (e.g., "cups", "tbsp")
+          description: Unit of measure (e.g., "cups", "tbsp", "ml", "oz", "large")
         notes:
           type: string
-          description: Preparation notes (e.g., "diced", "softened")
+          description: Preparation notes (e.g., "diced", "softened", "cut into florets")
 
   - name: instructions
     type: array
-    description: Step-by-step cooking instructions
+    description: |
+      Step-by-step cooking instructions. Extract ALL numbered steps from the Method section.
+      Each step should be the complete instruction text.
+      IMPORTANT: Instructions may contain markdown links - extract just the text content.
     items:
       type: object
       properties:
