@@ -274,6 +274,7 @@ export async function extractTutorial(
       const response = await client.extract({
         url,
         schema: TUTORIAL_SCHEMA,
+        capture_debug: true,
       });
 
       clearTimeout(timeoutId);
@@ -385,6 +386,7 @@ export async function startExtraction(
     const response = await client.crawl({
       url,
       schema: TUTORIAL_SCHEMA,
+      capture_debug: true,
     });
 
     const jobId = (response as any).job_id || (response as any).id;

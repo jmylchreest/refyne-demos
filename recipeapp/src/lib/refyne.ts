@@ -184,6 +184,7 @@ export async function extractRecipe(
     const result = await client.extract({
       url,
       schema: RECIPE_SCHEMA,
+      capture_debug: true,
     });
 
     if (!result || result.error) {
