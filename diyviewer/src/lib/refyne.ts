@@ -479,7 +479,7 @@ export async function startExtraction(
       url,
       schema: TUTORIAL_SCHEMA,
       capture_debug: true,
-      fetch_mode: 'auto', // Auto-detect when browser rendering is needed
+      fetch_mode: 'auto', // Auto-detect JS-heavy sites and use browser rendering when needed
     });
 
     const jobId = (response as any).job_id || (response as any).id;
