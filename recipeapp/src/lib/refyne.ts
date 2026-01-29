@@ -3,8 +3,15 @@
 
 import { Refyne } from '@refyne/sdk';
 
+export interface RecipeLink {
+  title?: string;
+  url: string;
+}
+
 export interface ExtractedRecipe {
+  page_type: 'recipe' | 'collection';
   title: string;
+  recipe_links?: RecipeLink[];
   description?: string;
   image_url?: string;
   author?: string;
@@ -46,6 +53,21 @@ name: Recipe
 description: |
   Extract recipe details from a webpage.
 
+  FIRST, determine the page type:
+  - "recipe" = A single recipe page with ingredients and instructions
+  - "collection" = A listing/index page showing multiple recipes (e.g., search results, category pages, ingredient pages)
+
+  If this is a COLLECTION page:
+  - Set page_type to "collection"
+  - Extract the title of the collection
+  - Extract links to individual recipe pages (up to 10)
+  - Leave recipe-specific fields empty
+
+  If this is a RECIPE page:
+  - Set page_type to "recipe"
+  - Extract all recipe details as normal
+  - Leave recipe_links empty
+
   IMPORTANT: Only extract images that are directly relevant to the recipe:
   - The main recipe/dish photo
   - Step-by-step cooking process photos
@@ -59,10 +81,29 @@ description: |
   - Unrelated promotional images
 
 fields:
+  - name: page_type
+    type: string
+    required: true
+    description: Either "recipe" for a single recipe page, or "collection" for a listing of multiple recipes
+
+  - name: recipe_links
+    type: array
+    description: If page_type is "collection", list of links to individual recipe pages (up to 10)
+    items:
+      type: object
+      properties:
+        title:
+          type: string
+          description: Recipe title
+        url:
+          type: string
+          required: true
+          description: Full URL to the recipe page
+
   - name: title
     type: string
     required: true
-    description: The recipe name or title
+    description: The recipe name (if recipe page) or collection title (if collection page)
 
   - name: description
     type: string
@@ -197,10 +238,18 @@ export async function extractRecipe(
     // Extract the recipe data from the response
     const extracted = result.data || result;
 
+    // Determine page type - default to 'recipe' if not specified
+    const pageType = extracted.page_type === 'collection' ? 'collection' : 'recipe';
+
     return {
       success: true,
       data: {
+        page_type: pageType,
         title: extracted.title || 'Untitled Recipe',
+        recipe_links: pageType === 'collection' ? (extracted.recipe_links || []).map((link: any) => ({
+          title: link.title,
+          url: link.url,
+        })) : undefined,
         description: extracted.description,
         image_url: extracted.image_url,
         author: extracted.author,
