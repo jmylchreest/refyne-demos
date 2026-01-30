@@ -118,7 +118,10 @@ fields:
       - Social media icons or logos
 
       Look for the largest, most prominent image showing the actual project/build result.
-      Extract from markdown format ![alt](URL) - return just the URL portion.
+
+      NOTE: Images are in the YAML frontmatter at the top of the content (between --- markers).
+      The frontmatter has an 'images:' section mapping placeholders (IMG_001, IMG_002, etc.) to URLs.
+      Find the most appropriate image URL from the frontmatter 'images' section.
 
   - name: author
     type: string
@@ -239,9 +242,28 @@ fields:
         image_urls:
           type: array
           description: |
-            Extract ALL image URLs from this step's content.
-            Images appear in markdown format as ![alt text](URL) - extract just the URL portion.
-            Look for URLs containing domains like content.instructables.com, i.imgur.com, etc.
+            Extract ALL image URLs for this step.
+
+            IMPORTANT: Images are NOT in standard markdown format. Instead:
+            1. In the body, images appear as placeholders like {{IMG_001}}, {{IMG_002}}, etc.
+            2. At the TOP of the content is a YAML frontmatter section (between --- markers)
+            3. The frontmatter has an 'images:' section that maps each placeholder to its URL
+
+            Example frontmatter:
+            ---
+            images:
+              IMG_001:
+                url: "https://content.instructables.com/abc.jpg"
+              IMG_002:
+                url: "https://content.instructables.com/def.jpg"
+            ---
+
+            To extract images for a step:
+            1. Find which {{IMG_XXX}} placeholders appear in that step's content
+            2. Look up each placeholder in the frontmatter 'images' section
+            3. Extract the 'url' value for each placeholder
+            4. Return all URLs as an array
+
             Include every image URL found in this step - do not skip any images.
           items:
             type: string
