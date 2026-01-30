@@ -348,8 +348,9 @@ fields:
 `;
 //#endregion tutorial-schema
 
-// Extraction timeout: 3 minutes for complex tutorials
-const EXTRACTION_TIMEOUT_MS = 180000;
+// Extraction timeout: 10 minutes for complex tutorials with browser rendering + LLM
+// Instructables tutorials with dynamic retry can take 5-7 minutes
+const EXTRACTION_TIMEOUT_MS = 600000;
 
 export async function extractTutorial(
   url: string,
