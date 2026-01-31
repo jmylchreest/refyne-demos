@@ -616,22 +616,11 @@ if (Astro.request.method === 'POST') {
   }
 
   async function pollForResults(jobId: string, sourceUrl: string) {
-    const maxAttempts = 300; // 5 minutes max with 1 second interval
-    let attempts = 0;
+    const maxSilentAttempts = 60; // 5 minutes of silence before timeout
+    let silentAttempts = 0; // Only counts failed polls or non-running status
     let lastStatus = '';
 
     pollInterval = setInterval(async () => {
-      attempts++;
-
-      if (attempts > maxAttempts) {
-        clearInterval(pollInterval!);
-        pollInterval = null;
-        stopElapsedTimer();
-        showUrlForm();
-        showError('Extraction timed out. The page may be too large or complex.');
-        return;
-      }
-
       try {
         const response = await fetch(`/api/poll/${jobId}`);
         const result = await response.json();
@@ -645,8 +634,14 @@ if (Astro.request.method === 'POST') {
           return;
         }
 
+        // Job is still running/pending - reset the silent counter
+        // We only timeout if we can't reach the backend, not while job is active
+        if (result.status === 'running' || result.status === 'pending') {
+          silentAttempts = 0;
+        }
+
         // Update step indicators based on status and elapsed time
-        if (result.status !== lastStatus || attempts % 10 === 0) {
+        if (result.status !== lastStatus || silentAttempts % 10 === 0) {
           lastStatus = result.status;
 
           if (result.status === 'pending') {
@@ -685,10 +680,21 @@ if (Astro.request.method === 'POST') {
           setTimeout(() => showSaveForm(result.data), 600);
         }
       } catch (error: any) {
-        // Network error - keep trying
+        // Network error - increment silent counter
+        silentAttempts++;
         console.error('Poll error:', error);
+
+        // Only timeout after sustained silence (can't reach backend)
+        if (silentAttempts > maxSilentAttempts) {
+          clearInterval(pollInterval!);
+          pollInterval = null;
+          stopElapsedTimer();
+          showUrlForm();
+          showError('Lost connection to extraction service. Please try again.');
+          return;
+        }
       }
-    }, 1000);
+    }, 5000);
   }
 
   // Event listeners
