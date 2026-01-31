@@ -475,6 +475,7 @@ export interface CrawlJobStatusResponse {
   success: boolean;
   status?: string;
   progress?: number;
+  queuePosition?: number;
   data?: ExtractedTutorial;
   error?: string;
 }
@@ -552,11 +553,16 @@ export async function getJobStatus(
 
     // Job still in progress
     if (status === 'pending' || status === 'crawling' || status === 'processing') {
-      return {
+      const response: CrawlJobStatusResponse = {
         success: true,
         status,
         progress: (job as any).progress || 0,
       };
+      // Include queue position for pending jobs
+      if (status === 'pending' && (job as any).queue_position > 0) {
+        response.queuePosition = (job as any).queue_position;
+      }
+      return response;
     }
 
     // Job failed

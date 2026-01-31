@@ -645,7 +645,10 @@ if (Astro.request.method === 'POST') {
           lastStatus = result.status;
 
           if (result.status === 'pending') {
-            advanceToStep(2, 'Waiting in queue...');
+            const queueMsg = result.queuePosition && result.queuePosition > 0
+              ? `Waiting in queue... (position ${result.queuePosition})`
+              : 'Waiting in queue...';
+            advanceToStep(2, queueMsg);
           } else if (result.status === 'running') {
             // Progress through steps based on time elapsed
             const elapsed = Math.floor((Date.now() - startTime) / 1000);
